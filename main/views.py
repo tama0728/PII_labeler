@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
@@ -182,3 +182,87 @@ def register(request):
     else:
         form = UserCreationForm()
     return render(request, 'main/register.html', {'form': form})
+
+@login_required
+def document_download(request):
+    """문서 다운로드 페이지"""
+    documents = Document.objects.filter(created_by=request.user)
+    return render(request, 'main/document_download.html', {'documents': documents})
+
+@login_required
+def download_jsonl(request):
+    """선택된 문서들을 JSONL 형식으로 다운로드"""
+    if request.method == 'POST':
+        try:
+            selected_doc_ids = request.POST.getlist('selected_documents')
+            
+            if not selected_doc_ids:
+                messages.error(request, '다운로드할 문서를 선택해주세요.')
+                return redirect('document_download')
+            
+            # 선택된 문서들 조회
+            documents = Document.objects.filter(
+                id__in=selected_doc_ids,
+                created_by=request.user
+            )
+            
+            if not documents.exists():
+                messages.error(request, '선택된 문서를 찾을 수 없습니다.')
+                return redirect('document_download')
+            
+            # JSONL 데이터 생성
+            jsonl_lines = []
+            for document in documents:
+                # PII 태그들 조회
+                pii_tags = document.pii_tags.all()
+                
+                # entities 배열 생성
+                entities = []
+                for tag in pii_tags:
+                    entity = {
+                        "span_text": tag.span_text,
+                        "entity_type": tag.pii_category.value,
+                        "start_offset": tag.start_offset,
+                        "end_offset": tag.end_offset,
+                        "span_id": tag.span_id,
+                        "entity_id": tag.entity_id,
+                        "annotator": tag.annotator,
+                        "identifier_type": tag.identifier_type
+                    }
+                    entities.append(entity)
+                
+                # JSON 객체 생성
+                json_obj = {
+                    "metadata": {
+                        "data_id": document.data_id,
+                        "number_of_subjects": int(document.number_of_subjects) if document.number_of_subjects.isdigit() else 0,
+                        "provenance": {
+                            "dialog_type": document.dialog_type,
+                            "turn_cnt": int(float(document.turn_cnt)) if document.turn_cnt.replace('.', '').isdigit() else 0,
+                            "doc_id": document.doc_id
+                        }
+                    },
+                    "text": document.text,
+                    "entities": entities
+                }
+                
+                jsonl_lines.append(json.dumps(json_obj, ensure_ascii=False))
+            
+            # JSONL 파일 내용 생성
+            jsonl_content = '\n'.join(jsonl_lines)
+            
+            # HTTP 응답 생성
+            response = HttpResponse(
+                jsonl_content,
+                content_type='application/json; charset=utf-8'
+            )
+            response['Content-Disposition'] = f'attachment; filename="documents_{len(documents)}.jsonl"'
+            
+            messages.success(request, f'{len(documents)}개의 문서가 JSONL 파일로 다운로드되었습니다.')
+            return response
+            
+        except Exception as e:
+            messages.error(request, f'다운로드 중 오류가 발생했습니다: {str(e)}')
+            return redirect('document_download')
+    
+    return redirect('document_download')

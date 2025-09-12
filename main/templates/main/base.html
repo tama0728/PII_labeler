@@ -38,7 +38,10 @@
                         <a class="nav-link" href="{% url 'document_list' %}">문서 목록</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'document_create' %}">문서 생성</a>
+                        <a class="nav-link" href="{% url 'document_create' %}">문서 업로드</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'document_download' %}">문서 다운로드</a>
                     </li>
                     {% endif %}
                 </ul>
