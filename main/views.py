@@ -309,6 +309,54 @@ def update_pii_tag(request):
     
     return JsonResponse({'success': False, 'message': '잘못된 요청입니다.'})
 
+@csrf_exempt
+@login_required
+def delete_document(request):
+    """문서 삭제 API"""
+    if request.method == 'POST':
+        try:
+            # JSON 데이터 또는 Form 데이터 처리
+            if request.content_type == 'application/json':
+                data = json.loads(request.body)
+                document_id = data.get('document_id')
+            else:
+                document_id = request.POST.get('document_id')
+            
+            if not document_id:
+                return JsonResponse({
+                    'success': False,
+                    'message': '문서 ID가 필요합니다.'
+                })
+            
+            # 문서 조회 및 권한 확인
+            document = get_object_or_404(Document, id=document_id)
+            
+            # 작성자 또는 관리자만 삭제 가능
+            if document.created_by != request.user and not request.user.is_staff:
+                return JsonResponse({
+                    'success': False,
+                    'message': '삭제 권한이 없습니다.'
+                })
+            
+            # 관련 PII 태그들도 함께 삭제
+            document.pii_tags.all().delete()
+            
+            # 문서 삭제
+            document.delete()
+            
+            return JsonResponse({
+                'success': True,
+                'message': '문서가 삭제되었습니다.'
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'오류가 발생했습니다: {str(e)}'
+            })
+    
+    return JsonResponse({'success': False, 'message': '잘못된 요청입니다.'})
+
 def register(request):
     """회원가입"""
     if request.method == 'POST':

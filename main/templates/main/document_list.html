@@ -25,11 +25,16 @@
                 <p class="card-text">{{ document.text|truncatewords:20 }}</p>
             </div>
             <div class="card-footer bg-transparent">
-                <div class="d-flex justify-content-between">
+                <div class="d-flex justify-content-between align-items-center">
                     <span class="badge bg-info">
                         <i class="fas fa-tags"></i> {{ document.pii_tags.count }} 태그
                     </span>
-                    <a href="{% url 'document_detail' document.pk %}" class="btn btn-sm btn-outline-primary">보기</a>
+                    <div class="btn-group" role="group">
+                        <a href="{% url 'document_detail' document.pk %}" class="btn btn-sm btn-outline-primary">보기</a>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteDocument({{ document.pk }}, '{{ document.data_id }}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -46,4 +51,40 @@
     </a>
 </div>
 {% endif %}
+
+<!-- CSRF 토큰 -->
+{% csrf_token %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function deleteDocument(documentId, documentName) {
+    if (confirm(`"${documentName}" 문서를 정말 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) {
+        const formData = new FormData();
+        formData.append('document_id', documentId);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        fetch('{% url "delete_document" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 성공 시 페이지 새로고침
+                location.reload();
+            } else {
+                alert('문서 삭제 실패: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('오류가 발생했습니다.');
+        });
+    }
+}
+</script>
 {% endblock %}
