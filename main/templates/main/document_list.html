@@ -2,12 +2,37 @@
 
 {% block title %}문서 목록 - PII Labeler{% endblock %}
 
+{% block extra_css %}
+<style>
+/* 체크박스 크기 확대 */
+.document-checkbox, #selectAll {
+    transform: scale(1.5);
+    margin: 8px;
+}
+
+/* 체크박스 컨테이너 정렬 */
+th:first-child, td:first-child {
+    text-align: center;
+    vertical-align: middle;
+    width: 60px;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-list"></i> 내 문서</h2>
-    <a href="{% url 'document_create' %}" class="btn btn-primary">
-        <i class="fas fa-plus"></i> 새 문서
-    </a>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-success" id="bulkDownloadBtn" disabled onclick="bulkDownload()">
+            <i class="fas fa-download"></i> 선택 다운로드
+        </button>
+        <button type="button" class="btn btn-danger" id="bulkDeleteBtn" disabled onclick="bulkDelete()">
+            <i class="fas fa-trash"></i> 선택 삭제
+        </button>
+        <a href="{% url 'document_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> 새 문서
+        </a>
+    </div>
 </div>
 
 {% if documents %}
@@ -15,6 +40,9 @@
     <table class="table table-hover">
         <thead class="table-light">
             <tr>
+                <th>
+                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                </th>
                 <th>문서 ID</th>
                 <th>내용 미리보기</th>
                 <th>PII 태그 수</th>
@@ -25,6 +53,9 @@
         <tbody>
             {% for document in documents %}
             <tr class="document-row" data-document-id="{{ document.pk }}" style="cursor: pointer;">
+                <td>
+                    <input type="checkbox" class="document-checkbox" value="{{ document.pk }}" onchange="updateBulkButtons()" onclick="event.stopPropagation();">
+                </td>
                 <td>
                     <strong>{{ document.data_id }}</strong>
                 </td>
@@ -76,14 +107,121 @@ document.addEventListener('DOMContentLoaded', function() {
     
     documentRows.forEach(row => {
         row.addEventListener('click', function(e) {
-            // 삭제 버튼 클릭이 아닌 경우에만 상세보기로 이동
-            if (!e.target.closest('.btn-outline-danger')) {
+            // 체크박스나 삭제 버튼 클릭이 아닌 경우에만 상세보기로 이동
+            if (!e.target.closest('.btn-outline-danger') && !e.target.closest('.document-checkbox')) {
                 const documentId = this.dataset.documentId;
                 window.location.href = `{% url 'document_detail' 0 %}`.replace('0', documentId);
             }
         });
     });
 });
+
+// 전체 선택/해제
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const documentCheckboxes = document.querySelectorAll('.document-checkbox');
+    
+    documentCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+    
+    updateBulkButtons();
+}
+
+// 일괄 작업 버튼 상태 업데이트
+function updateBulkButtons() {
+    const checkedBoxes = document.querySelectorAll('.document-checkbox:checked');
+    const bulkDownloadBtn = document.getElementById('bulkDownloadBtn');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    const selectAllCheckbox = document.getElementById('selectAll');
+    
+    const hasSelection = checkedBoxes.length > 0;
+    bulkDownloadBtn.disabled = !hasSelection;
+    bulkDeleteBtn.disabled = !hasSelection;
+    
+    // 전체 선택 체크박스 상태 업데이트
+    const totalCheckboxes = document.querySelectorAll('.document-checkbox').length;
+    selectAllCheckbox.checked = checkedBoxes.length === totalCheckboxes;
+    selectAllCheckbox.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < totalCheckboxes;
+}
+
+// 일괄 다운로드
+function bulkDownload() {
+    const checkedBoxes = document.querySelectorAll('.document-checkbox:checked');
+    if (checkedBoxes.length === 0) {
+        alert('다운로드할 문서를 선택해주세요.');
+        return;
+    }
+    
+    const documentIds = Array.from(checkedBoxes).map(checkbox => checkbox.value);
+    
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{% url "download_jsonl" %}';
+    
+    documentIds.forEach(id => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'document_ids';
+        input.value = id;
+        form.appendChild(input);
+    });
+    
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrfmiddlewaretoken';
+    csrfInput.value = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    form.appendChild(csrfInput);
+    
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
+
+// 일괄 삭제
+function bulkDelete() {
+    const checkedBoxes = document.querySelectorAll('.document-checkbox:checked');
+    if (checkedBoxes.length === 0) {
+        alert('삭제할 문서를 선택해주세요.');
+        return;
+    }
+    
+    const documentNames = Array.from(checkedBoxes).map(checkbox => {
+        const row = checkbox.closest('tr');
+        return row.querySelector('strong').textContent;
+    });
+    
+    if (confirm(`선택한 ${checkedBoxes.length}개 문서를 정말 삭제하시겠습니까?\n\n${documentNames.join(', ')}\n\n이 작업은 되돌릴 수 없습니다.`)) {
+        const documentIds = Array.from(checkedBoxes).map(checkbox => checkbox.value);
+        
+        const formData = new FormData();
+        documentIds.forEach(id => {
+            formData.append('document_ids', id);
+        });
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        fetch('{% url "bulk_delete_documents" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`${data.deleted_count}개 문서가 삭제되었습니다.`);
+                location.reload();
+            } else {
+                alert('문서 삭제 실패: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('오류가 발생했습니다.');
+        });
+    }
+}
 
 function deleteDocument(documentId, documentName) {
     if (confirm(`"${documentName}" 문서를 정말 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) {

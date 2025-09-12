@@ -440,31 +440,30 @@ def register(request):
     return render(request, 'main/register.html', {'form': form})
 
 @login_required
-def document_download(request):
-    """문서 다운로드 페이지"""
-    documents = Document.objects.filter(created_by=request.user)
-    return render(request, 'main/document_download.html', {'documents': documents})
-
-@login_required
 def download_jsonl(request):
     """선택된 문서들을 JSONL 형식으로 다운로드"""
     if request.method == 'POST':
         try:
+            # 두 가지 방식으로 문서 ID 받기 (기존 방식과 새로운 방식)
             selected_doc_ids = request.POST.getlist('selected_documents')
+            bulk_doc_ids = request.POST.getlist('document_ids')
             
-            if not selected_doc_ids:
+            # 둘 중 하나라도 있으면 사용
+            document_ids = selected_doc_ids if selected_doc_ids else bulk_doc_ids
+            
+            if not document_ids:
                 messages.error(request, '다운로드할 문서를 선택해주세요.')
-                return redirect('document_download')
+                return redirect('document_list')
             
             # 선택된 문서들 조회
             documents = Document.objects.filter(
-                id__in=selected_doc_ids,
+                id__in=document_ids,
                 created_by=request.user
             )
             
             if not documents.exists():
                 messages.error(request, '선택된 문서를 찾을 수 없습니다.')
-                return redirect('document_download')
+                return redirect('document_list')
             
             # JSONL 데이터 생성
             jsonl_lines = []
@@ -519,6 +518,49 @@ def download_jsonl(request):
             
         except Exception as e:
             messages.error(request, f'다운로드 중 오류가 발생했습니다: {str(e)}')
-            return redirect('document_download')
+            return redirect('document_list')
     
-    return redirect('document_download')
+    return redirect('document_list')
+
+@csrf_exempt
+@login_required
+def bulk_delete_documents(request):
+    """여러 문서 일괄 삭제"""
+    if request.method == 'POST':
+        try:
+            document_ids = request.POST.getlist('document_ids')
+            
+            if not document_ids:
+                return JsonResponse({
+                    'success': False,
+                    'message': '삭제할 문서를 선택해주세요.'
+                })
+            
+            deleted_count = 0
+            for document_id in document_ids:
+                try:
+                    document = get_object_or_404(Document, pk=document_id)
+                    
+                    # 권한 확인 (작성자 또는 관리자만 삭제 가능)
+                    if document.created_by == request.user or request.user.is_staff:
+                        # 관련 PII 태그들도 함께 삭제
+                        document.pii_tags.all().delete()
+                        document.delete()
+                        deleted_count += 1
+                except Exception as e:
+                    print(f"문서 {document_id} 삭제 실패: {e}")
+                    continue
+            
+            return JsonResponse({
+                'success': True,
+                'deleted_count': deleted_count,
+                'message': f'{deleted_count}개 문서가 삭제되었습니다.'
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'오류가 발생했습니다: {str(e)}'
+            })
+    
+    return JsonResponse({'success': False, 'message': '잘못된 요청입니다.'})
