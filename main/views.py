@@ -252,6 +252,63 @@ def delete_pii_tag(request):
     
     return JsonResponse({'success': False, 'message': '잘못된 요청입니다.'})
 
+@csrf_exempt
+@login_required
+def update_pii_tag(request):
+    """PII 태그 업데이트 API"""
+    if request.method == 'POST':
+        try:
+            # JSON 데이터 또는 Form 데이터 처리
+            if request.content_type == 'application/json':
+                data = json.loads(request.body)
+                tag_id = data.get('tag_id')
+                pii_category_value = data.get('pii_category_value')
+                identifier_type = data.get('identifier_type', '')
+            else:
+                tag_id = request.POST.get('tag_id')
+                pii_category_value = request.POST.get('pii_category_value')
+                identifier_type = request.POST.get('identifier_type', '')
+            
+            if not tag_id or not pii_category_value:
+                return JsonResponse({
+                    'success': False,
+                    'message': '태그 ID와 PII 카테고리가 필요합니다.'
+                })
+            
+            # 태그 조회 및 권한 확인
+            pii_tag = get_object_or_404(PIITag, id=tag_id)
+            
+            # 작성자 또는 관리자만 수정 가능
+            if pii_tag.created_by != request.user and not request.user.is_staff:
+                return JsonResponse({
+                    'success': False,
+                    'message': '수정 권한이 없습니다.'
+                })
+            
+            # PII 카테고리 조회
+            pii_category = get_object_or_404(PIICategory, value=pii_category_value)
+            
+            # 태그 업데이트
+            pii_tag.pii_category = pii_category
+            pii_tag.identifier_type = identifier_type
+            pii_tag.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'PII 태그가 업데이트되었습니다.',
+                'tag_id': pii_tag.id,
+                'new_category': pii_category.value,
+                'new_color': pii_category.background_color
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'오류가 발생했습니다: {str(e)}'
+            })
+    
+    return JsonResponse({'success': False, 'message': '잘못된 요청입니다.'})
+
 def register(request):
     """회원가입"""
     if request.method == 'POST':

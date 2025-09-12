@@ -487,9 +487,16 @@ document.addEventListener('DOMContentLoaded', function() {
             this.classList.add('selected');
             selectedTagType = this.dataset.tagType;
             
-            // 문서 텍스트에 선택 가능 상태 표시
-            documentText.style.cursor = 'crosshair';
-            documentText.title = '텍스트를 드래그하여 선택하세요';
+            // 현재 선택된 태그가 있는지 확인
+            const selectedTag = document.querySelector('.existing-pii-tag.selected');
+            if (selectedTag) {
+                // 기존 태그의 타입을 변경
+                updateExistingTagType(selectedTag, selectedTagType);
+            } else {
+                // 새 태그 추가 모드
+                documentText.style.cursor = 'crosshair';
+                documentText.title = '텍스트를 드래그하여 선택하세요';
+            }
             
             console.log('선택된 태그 타입:', selectedTagType);
         });
@@ -744,8 +751,76 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // 선택된 태그에 선택 상태 추가
             tagElement.classList.add('selected');
+            
+            // 현재 태그 타입에 해당하는 버튼 선택
+            const correspondingButton = document.querySelector(`[data-tag-type="${tagData.category}"]`);
+            if (correspondingButton) {
+                // 모든 태그 버튼에서 selected 클래스 제거
+                document.querySelectorAll('.pii-tag-btn').forEach(btn => btn.classList.remove('selected'));
+                // 해당 버튼에 selected 클래스 추가
+                correspondingButton.classList.add('selected');
+                selectedTagType = tagData.category;
+            }
         }
     };
+    
+    // 기존 태그 타입 업데이트 함수
+    function updateExistingTagType(tagElement, newType) {
+        const tagId = tagElement.dataset.tagId;
+        const identifierType = document.getElementById('identifierType').value;
+        
+        const formData = new FormData();
+        formData.append('tag_id', tagId);
+        formData.append('pii_category_value', newType);
+        formData.append('identifier_type', identifierType);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        fetch('{% url "update_pii_tag" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 태그 요소 업데이트
+                tagElement.style.backgroundColor = data.new_color;
+                tagElement.title = `${data.new_category}: ${tagElement.textContent}`;
+                
+                // 상세 정보 패널 업데이트
+                document.getElementById('entityType').value = data.new_category;
+                
+                // JSON 정보 업데이트
+                const tagData = JSON.parse(tagElement.dataset.tagData);
+                const jsonData = {
+                    span_text: tagData.text,
+                    entity_type: data.new_category,
+                    start_offset: tagData.start,
+                    end_offset: tagData.end,
+                    span_id: "",
+                    entity_id: "",
+                    annotator: "{{ user.username }}",
+                    identifier_type: identifierType
+                };
+                
+                document.getElementById('jsonDisplay').value = JSON.stringify(jsonData, null, 2);
+                
+                // 태그 데이터 업데이트
+                tagData.category = data.new_category;
+                tagElement.dataset.tagData = JSON.stringify(tagData);
+                
+                console.log('태그 타입이 변경되었습니다:', data.new_category);
+            } else {
+                alert('태그 타입 변경 실패: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('오류가 발생했습니다.');
+        });
+    }
     
     // 페이지 로드 시 메타데이터 초기 표시
     document.addEventListener('DOMContentLoaded', function() {
