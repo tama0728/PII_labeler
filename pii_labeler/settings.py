@@ -65,7 +65,7 @@ ROOT_URLCONF = "pii_labeler.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "main" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -136,3 +136,8 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# 로그인/로그아웃 리디렉션 설정
+LOGIN_URL = '/accounts/login/'
+LOGIN_REDIRECT_URL = '/'  # 로그인 후 메인 페이지로 이동
+LOGOUT_REDIRECT_URL = '/'  # 로그아웃 후 메인 페이지로 이동

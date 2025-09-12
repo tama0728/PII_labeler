@@ -5,8 +5,11 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
 import json
-from .models import Document, PIITag
+import os
+from .models import Document, PIITag, PIICategory
 
 def index(request):
     """메인 페이지"""
@@ -28,28 +31,50 @@ def document_detail(request, pk):
     """문서 상세"""
     document = get_object_or_404(Document, pk=pk)
     pii_tags = document.pii_tags.all()
+    pii_categories = PIICategory.objects.all()
     return render(request, 'main/document_detail.html', {
         'document': document,
-        'pii_tags': pii_tags
+        'pii_tags': pii_tags,
+        'pii_categories': pii_categories
     })
 
 @login_required
 def document_create(request):
-    """문서 생성"""
+    """JSONL 파일 업로드로 문서 생성"""
     if request.method == 'POST':
-        title = request.POST.get('title')
-        content = request.POST.get('content')
+        uploaded_file = request.FILES.get('jsonl_file')
         
-        if title and content:
-            document = Document.objects.create(
-                title=title,
-                content=content,
-                created_by=request.user
-            )
-            messages.success(request, '문서가 성공적으로 생성되었습니다.')
-            return redirect('document_detail', pk=document.pk)
+        if uploaded_file and uploaded_file.name.endswith('.jsonl'):
+            try:
+                # 파일 내용 읽기
+                content = uploaded_file.read().decode('utf-8')
+                lines = content.strip().split('\n')
+                
+                created_count = 0
+                for line in lines:
+                    if line.strip():
+                        try:
+                            data = json.loads(line)
+                            document = Document.objects.create(
+                                data_id=data.get('data_id', ''),
+                                number_of_subjects=data.get('number_of_subjects', ''),
+                                dialog_type=data.get('dialog_type', ''),
+                                turn_cnt=data.get('turn_cnt', ''),
+                                doc_id=data.get('doc_id', ''),
+                                text=data.get('text', ''),
+                                created_by=request.user
+                            )
+                            created_count += 1
+                        except json.JSONDecodeError:
+                            continue
+                
+                messages.success(request, f'{created_count}개의 문서가 성공적으로 업로드되었습니다.')
+                return redirect('document_list')
+                
+            except Exception as e:
+                messages.error(request, f'파일 처리 중 오류가 발생했습니다: {str(e)}')
         else:
-            messages.error(request, '제목과 내용을 모두 입력해주세요.')
+            messages.error(request, 'JSONL 파일을 선택해주세요.')
     
     return render(request, 'main/document_create.html')
 
@@ -62,17 +87,18 @@ def add_pii_tag(request):
             data = json.loads(request.body)
             
             document_id = data.get('document_id')
-            pii_type = data.get('pii_type')
+            pii_category_value = data.get('pii_category')
             start_pos = data.get('start_position')
             end_pos = data.get('end_position')
             tagged_text = data.get('tagged_text')
             confidence = data.get('confidence', 0.0)
             
             document = get_object_or_404(Document, pk=document_id)
+            pii_category = get_object_or_404(PIICategory, value=pii_category_value)
             
             pii_tag = PIITag.objects.create(
                 document=document,
-                pii_type=pii_type,
+                pii_category=pii_category,
                 start_position=start_pos,
                 end_position=end_pos,
                 tagged_text=tagged_text,

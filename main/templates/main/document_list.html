@@ -16,13 +16,13 @@
     <div class="col-md-6 col-lg-4 mb-4">
         <div class="card h-100">
             <div class="card-body">
-                <h5 class="card-title">{{ document.title }}</h5>
+                <h5 class="card-title">{{ document.data_id }}</h5>
                 <p class="card-text">
                     <small class="text-muted">
                         <i class="fas fa-calendar"></i> {{ document.created_at|date:"Y-m-d H:i" }}
                     </small>
                 </p>
-                <p class="card-text">{{ document.content|truncatewords:20 }}</p>
+                <p class="card-text">{{ document.text|truncatewords:20 }}</p>
             </div>
             <div class="card-footer bg-transparent">
                 <div class="d-flex justify-content-between">

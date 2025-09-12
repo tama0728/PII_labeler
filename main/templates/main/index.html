@@ -28,7 +28,7 @@
                     {% for document in documents %}
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <div>
-                            <h6 class="mb-1">{{ document.title }}</h6>
+                            <h6 class="mb-1">{{ document.data_id }}</h6>
                             <small class="text-muted">{{ document.created_at|date:"Y-m-d H:i" }}</small>
                         </div>
                         <a href="{% url 'document_detail' document.pk %}" class="btn btn-sm btn-outline-primary">보기</a>

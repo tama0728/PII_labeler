@@ -58,7 +58,7 @@
     <div class="col-lg-8">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h4 class="mb-0">{{ document.title }}</h4>
+                <h4 class="mb-0">{{ document.data_id }}</h4>
                 <div>
                     <span class="badge bg-secondary">{{ document.created_at|date:"Y-m-d H:i" }}</span>
                     <span class="badge bg-info">{{ pii_tags.count }} PII 태그</span>
@@ -66,7 +66,7 @@
             </div>
             <div class="card-body">
                 <div class="document-content" id="document-content">
-                    {{ document.content|linebreaks }}
+                    {{ document.text|linebreaks }}
                 </div>
                 
                 <div class="mt-3">
@@ -91,7 +91,9 @@
                     {% for tag in pii_tags %}
                     <div class="d-flex justify-content-between align-items-start mb-3 p-2 border rounded">
                         <div>
-                            <span class="badge bg-primary">{{ tag.get_pii_type_display }}</span>
+                            <span class="badge" style="background-color: {{ tag.pii_category.background_color }}; color: white;">
+                                {{ tag.pii_category.value }}
+                            </span>
                             <div class="mt-1">
                                 <strong>{{ tag.tagged_text }}</strong>
                             </div>
@@ -121,16 +123,14 @@
                 <form id="pii-tag-form">
                     {% csrf_token %}
                     <div class="mb-3">
-                        <label class="form-label">PII 유형</label>
+                        <label class="form-label">PII 카테고리</label>
                         <select class="form-select" id="pii-type" required>
                             <option value="">선택하세요</option>
-                            <option value="name">이름</option>
-                            <option value="email">이메일</option>
-                            <option value="phone">전화번호</option>
-                            <option value="address">주소</option>
-                            <option value="ssn">주민등록번호</option>
-                            <option value="credit_card">신용카드번호</option>
-                            <option value="other">기타</option>
+                            {% for category in pii_categories %}
+                            <option value="{{ category.value }}" data-color="{{ category.background_color }}">
+                                {{ category.value }} - {{ category.description }}
+                            </option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
@@ -185,7 +185,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const data = {
             document_id: {{ document.pk }},
-            pii_type: piiType,
+            pii_category: piiType,
             start_position: startPos,
             end_position: endPos,
             tagged_text: taggedText,

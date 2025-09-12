@@ -1,28 +1,36 @@
 {% extends 'main/base.html' %}
 
-{% block title %}문서 생성 - PII Labeler{% endblock %}
+{% block title %}문서 업로드 - PII Labeler{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-8">
         <div class="card">
             <div class="card-header">
-                <h4 class="mb-0"><i class="fas fa-plus"></i> 새 문서 생성</h4>
+                <h4 class="mb-0"><i class="fas fa-upload"></i> JSONL 파일 업로드</h4>
             </div>
             <div class="card-body">
-                <form method="post">
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle"></i> 업로드 가이드</h6>
+                    <ul class="mb-0">
+                        <li>JSONL (JSON Lines) 형식의 파일을 업로드하세요</li>
+                        <li>각 줄은 하나의 JSON 객체여야 합니다</li>
+                        <li>필수 필드: <code>data_id</code>, <code>number_of_subjects</code>, <code>dialog_type</code>, <code>turn_cnt</code>, <code>doc_id</code>, <code>text</code></li>
+                    </ul>
+                </div>
+                
+                <form method="post" enctype="multipart/form-data">
                     {% csrf_token %}
                     <div class="mb-3">
-                        <label for="title" class="form-label">제목</label>
-                        <input type="text" class="form-control" id="title" name="title" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="content" class="form-label">내용</label>
-                        <textarea class="form-control" id="content" name="content" rows="15" required placeholder="분석할 텍스트를 입력하세요..."></textarea>
+                        <label for="jsonl_file" class="form-label">JSONL 파일 선택</label>
+                        <input type="file" class="form-control" id="jsonl_file" name="jsonl_file" accept=".jsonl" required>
+                        <div class="form-text">.jsonl 확장자의 파일만 업로드 가능합니다.</div>
                     </div>
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
                         <a href="{% url 'document_list' %}" class="btn btn-secondary me-md-2">취소</a>
-                        <button type="submit" class="btn btn-primary">문서 생성</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> 파일 업로드
+                        </button>
                     </div>
                 </form>
             </div>
