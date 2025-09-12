@@ -488,25 +488,33 @@ function updateLinkedAnnotationDropdown(currentTagId) {
 
     // 각 엔티티 그룹의 대표 텍스트: span_id == entity_id 인 태그의 span_text
     entityIdToTags.forEach((tags, entityId) => {
-        if (!entityId || tags.some(t => t.id === currentTagId)) {
-            // 현재 태그의 그룹도 옵션으로 표시(자기 연결 유지), entityId 비어있으면 스킵
-        }
-        // 대표 텍스트 선택
+        // entity_id가 없으면 스킵
+        if (!entityId) return;
+        // 현재 태그가 독립(자기 span_id)일 때, 그 자기 span_id 그룹만 숨김
+        // 이미 다른 그룹(entity_id)로 연결된 경우, 그 그룹은 표시되어야 함
+        const currentTagData = JSON.parse(document.querySelector(`[data-tag-id="${currentTagId}"]`).dataset.tagData);
+        const isOwnIndependentGroup = String(entityId) === String(currentTagData.span_id);
+        if (isOwnIndependentGroup) return;
+
+        // 대표 텍스트 및 대표 위치 선택
         let representativeText = '';
+        let repStart = '';
+        let repEnd = '';
         const rep = tags.find(t => t.span_id && t.entity_id && String(t.span_id) === String(t.entity_id));
         if (rep) {
             representativeText = rep.text;
+            repStart = rep.start;
+            repEnd = rep.end;
         } else {
             representativeText = tags[0]?.text || '';
+            repStart = tags[0]?.start ?? '';
+            repEnd = tags[0]?.end ?? '';
         }
 
         // 옵션 생성 (값은 entity_id)
         const option = document.createElement('option');
         option.value = entityId;
-        option.textContent = `${representativeText}`;
-        if (String(entityId) === String(currentTagData.entity_id)) {
-            option.selected = true;
-        }
+        option.textContent = `${representativeText} (entity_id: ${entityId}, pos: ${repStart}-${repEnd})`;
         dropdown.appendChild(option);
     });
 }
@@ -1035,12 +1043,23 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('entityType').value = tagData.category;
             document.getElementById('annotator').value = tagData.annotator || 'Anonymous';
             
+            
             // 식별자 유형 설정
             const identifierTypeSelect = document.getElementById('identifierType');
             identifierTypeSelect.value = tagData.identifier_type || 'default';
             
             // 연결 드롭박스 업데이트
             updateLinkedAnnotationDropdown(tagId);
+            // 현재 태그의 entity_id에 맞게 드롭박스 선택값 설정
+            const linkedDropdown = document.getElementById('linkedAnnotation');
+            if (String(tagData.entity_id) === String(tagData.span_id)) {
+                // 자기 자신의 대표 id면 독립 어노테이션 선택
+                linkedDropdown.value = '';
+            } else {
+                // 다른 그룹이면 해당 entity_id 선택 (옵션이 없는 경우 대비)
+                const hasOption = Array.from(linkedDropdown.options).some(opt => String(opt.value) === String(tagData.entity_id));
+                linkedDropdown.value = hasOption ? String(tagData.entity_id) : '';
+            }
             
             // JSON 정보 생성
             const jsonData = {
