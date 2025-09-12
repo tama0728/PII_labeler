@@ -11,35 +11,47 @@
 </div>
 
 {% if documents %}
-<div class="row">
-    {% for document in documents %}
-    <div class="col-md-6 col-lg-4 mb-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <h5 class="card-title">{{ document.data_id }}</h5>
-                <p class="card-text">
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>문서 ID</th>
+                <th>내용 미리보기</th>
+                <th>PII 태그 수</th>
+                <th>생성일</th>
+                <th>삭제</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for document in documents %}
+            <tr class="document-row" data-document-id="{{ document.pk }}" style="cursor: pointer;">
+                <td>
+                    <strong>{{ document.data_id }}</strong>
+                </td>
+                <td>
+                    <div class="text-truncate" style="max-width: 300px;" title="{{ document.text }}">
+                        {{ document.text|truncatewords:15 }}
+                    </div>
+                </td>
+                <td>
+                    <span class="badge bg-info">
+                        <i class="fas fa-tags"></i> {{ document.pii_tags.count }}
+                    </span>
+                </td>
+                <td>
                     <small class="text-muted">
                         <i class="fas fa-calendar"></i> {{ document.created_at|date:"Y-m-d H:i" }}
                     </small>
-                </p>
-                <p class="card-text">{{ document.text|truncatewords:20 }}</p>
-            </div>
-            <div class="card-footer bg-transparent">
-                <div class="d-flex justify-content-between align-items-center">
-                    <span class="badge bg-info">
-                        <i class="fas fa-tags"></i> {{ document.pii_tags.count }} 태그
-                    </span>
-                    <div class="btn-group" role="group">
-                        <a href="{% url 'document_detail' document.pk %}" class="btn btn-sm btn-outline-primary">보기</a>
-                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteDocument({{ document.pk }}, '{{ document.data_id }}')">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endfor %}
+                </td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteDocument({{ document.pk }}, '{{ document.data_id }}'); event.stopPropagation();">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 {% else %}
 <div class="text-center py-5">
@@ -58,6 +70,21 @@
 
 {% block extra_js %}
 <script>
+// 문서 행 클릭 시 상세보기로 이동
+document.addEventListener('DOMContentLoaded', function() {
+    const documentRows = document.querySelectorAll('.document-row');
+    
+    documentRows.forEach(row => {
+        row.addEventListener('click', function(e) {
+            // 삭제 버튼 클릭이 아닌 경우에만 상세보기로 이동
+            if (!e.target.closest('.btn-outline-danger')) {
+                const documentId = this.dataset.documentId;
+                window.location.href = `{% url 'document_detail' 0 %}`.replace('0', documentId);
+            }
+        });
+    });
+});
+
 function deleteDocument(documentId, documentName) {
     if (confirm(`"${documentName}" 문서를 정말 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) {
         const formData = new FormData();
