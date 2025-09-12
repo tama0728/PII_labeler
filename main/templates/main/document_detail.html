@@ -489,7 +489,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 end: {{ tag.end_offset }},
                 text: "{{ tag.span_text|escapejs }}",
                 color: "{{ tag.pii_category.background_color }}",
-                category: "{{ tag.pii_category.value }}"
+                category: "{{ tag.pii_category.value }}",
+                span_id: "{{ tag.span_id|escapejs }}",
+                entity_id: "{{ tag.entity_id|escapejs }}",
+                annotator: "{{ tag.annotator|escapejs }}",
+                identifier_type: "{{ tag.identifier_type|escapejs }}"
             }{% if not forloop.last %},{% endif %}
             {% endfor %}
         ].sort((a, b) => a.start - b.start);
@@ -798,7 +802,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // 상세 정보 패널 업데이트
             document.getElementById('selectedText').value = tagData.text;
             document.getElementById('entityType').value = tagData.category;
-            document.getElementById('annotator').value = '{{ user.username }}';
+            document.getElementById('annotator').value = tagData.annotator || 'Anonymous';
             
             // JSON 정보 생성
             const jsonData = {
@@ -806,9 +810,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 entity_type: tagData.category,
                 start_offset: tagData.start,
                 end_offset: tagData.end,
-                span_id: "",
-                entity_id: "",
-                annotator: "{{ user.username }}",
+                span_id: tagData.span_id,
+                entity_id: tagData.entity_id,
+                annotator: tagData.annotator || "Anonymous",
                 identifier_type: document.getElementById('identifierType').value
             };
             
@@ -874,6 +878,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // 상세 정보 패널 업데이트
                 document.getElementById('entityType').value = data.new_category;
+                document.getElementById('annotator').value = "{{ user.username }}";  // 어노테이터 업데이트
                 
                 // JSON 정보 업데이트
                 const tagData = JSON.parse(tagElement.dataset.tagData);
@@ -882,8 +887,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     entity_type: data.new_category,
                     start_offset: tagData.start,
                     end_offset: tagData.end,
-                    span_id: "",
-                    entity_id: "",
+                    span_id: tagData.span_id,
+                    entity_id: tagData.entity_id,
                     annotator: "{{ user.username }}",
                     identifier_type: identifierType
                 };
@@ -892,6 +897,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // 태그 데이터 업데이트
                 tagData.category = data.new_category;
+                tagData.annotator = "{{ user.username }}";  // 로컬 데이터도 업데이트
                 tagElement.dataset.tagData = JSON.stringify(tagData);
                 
                 console.log('태그 타입이 변경되었습니다:', data.new_category);

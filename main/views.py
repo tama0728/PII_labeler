@@ -11,6 +11,30 @@ import json
 import os
 from .models import Document, PIITag, PIICategory
 
+def get_next_span_id(document):
+    """문서의 다음 span_id 반환"""
+    existing_spans = PIITag.objects.filter(document=document).exclude(span_id='').exclude(span_id__isnull=True)
+    max_span_id = 0
+    for tag in existing_spans:
+        try:
+            span_num = int(tag.span_id)
+            max_span_id = max(max_span_id, span_num)
+        except (ValueError, TypeError):
+            continue
+    return str(max_span_id + 1)
+
+def get_next_entity_id(document):
+    """문서의 다음 entity_id 반환"""
+    existing_entities = PIITag.objects.filter(document=document).exclude(entity_id='').exclude(entity_id__isnull=True)
+    max_entity_id = 0
+    for tag in existing_entities:
+        try:
+            entity_num = int(tag.entity_id)
+            max_entity_id = max(max_entity_id, entity_num)
+        except (ValueError, TypeError):
+            continue
+    return str(max_entity_id + 1)
+
 def index(request):
     """메인 페이지"""
     try:
@@ -99,15 +123,29 @@ def document_create(request):
                                     ).first()
                                     
                                     if pii_category:
+                                        # span_id와 entity_id가 비어있으면 자동 할당
+                                        span_id = entity.get('span_id', '')
+                                        entity_id = entity.get('entity_id', '')
+                                        
+                                        if not span_id:
+                                            span_id = get_next_span_id(document)
+                                        if not entity_id:
+                                            entity_id = get_next_entity_id(document)
+                                        
+                                        # annotator가 비어있으면 Anonymous로 설정
+                                        annotator_value = entity.get('annotator', '')
+                                        if not annotator_value:
+                                            annotator_value = "Anonymous"
+                                        
                                         PIITag.objects.create(
                                             document=document,
                                             pii_category=pii_category,
                                             span_text=entity.get('span_text', ''),
                                             start_offset=entity.get('start_offset', 0),
                                             end_offset=entity.get('end_offset', 0),
-                                            span_id=entity.get('span_id', ''),
-                                            entity_id=entity.get('entity_id', ''),
-                                            annotator=entity.get('annotator', ''),
+                                            span_id=span_id,
+                                            entity_id=entity_id,
+                                            annotator=annotator_value,
                                             identifier_type=entity.get('identifier_type', ''),
                                             confidence=1.0,  # 기존 태그는 신뢰도 1.0으로 설정
                                             created_by=request.user
@@ -193,6 +231,17 @@ def add_pii_tag(request):
                     'success': False,
                     'message': '해당 위치에 이미 같은 태그가 존재합니다.'
                 })
+            
+            # span_id와 entity_id가 비어있으면 자동으로 증가하는 숫자 할당
+            if not span_id:
+                span_id = get_next_span_id(document)
+            
+            if not entity_id:
+                entity_id = get_next_entity_id(document)
+            
+            # annotator가 비어있으면 Anonymous로 설정
+            if not annotator:
+                annotator = "Anonymous"
             
             # PII 태그 생성
             pii_tag = PIITag.objects.create(
@@ -307,6 +356,7 @@ def update_pii_tag(request):
             # 태그 업데이트
             pii_tag.pii_category = pii_category
             pii_tag.identifier_type = identifier_type
+            pii_tag.annotator = request.user.username  # 어노테이터를 현재 사용자로 업데이트
             pii_tag.save()
             
             return JsonResponse({
