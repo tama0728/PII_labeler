@@ -797,6 +797,89 @@ document.addEventListener('DOMContentLoaded', function() {
         hideSelectionInfo();
     });
     
+    // DOM 선택 Range를 원본 텍스트 오프셋으로 변환하는 유틸리티
+    function computeOffsetsFromSelection(rootElement, selectionRange) {
+        // logical length: TEXT -> length, BR -> 1 ("\n"), .delete-btn -> 0, others -> sum(children)
+        function logicalLength(node) {
+            if (!node) return 0;
+            if (node.nodeType === Node.TEXT_NODE) {
+                return node.nodeValue.length;
+            }
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                const el = node;
+                if (el.classList && el.classList.contains('delete-btn')) {
+                    return 0;
+                }
+                if (el.tagName === 'BR') {
+                    return 1;
+                }
+                let total = 0;
+                let child = el.firstChild;
+                while (child) {
+                    total += logicalLength(child);
+                    child = child.nextSibling;
+                }
+                return total;
+            }
+            return 0;
+        }
+
+        // Traverse to assign starting logical positions for elements and text nodes
+        const elementStartPos = new Map();
+        const textNodeStartPos = new Map();
+        let pos = 0;
+        function assignPositions(node) {
+            if (!node) return;
+            if (node.nodeType === Node.TEXT_NODE) {
+                textNodeStartPos.set(node, pos);
+                pos += node.nodeValue.length;
+                return;
+            }
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                const el = node;
+                if (el.classList && el.classList.contains('delete-btn')) {
+                    return;
+                }
+                if (el.tagName === 'BR') {
+                    pos += 1;
+                    return;
+                }
+                elementStartPos.set(el, pos);
+                let child = el.firstChild;
+                while (child) {
+                    assignPositions(child);
+                    child = child.nextSibling;
+                }
+            }
+        }
+        assignPositions(rootElement);
+
+        function positionFor(container, offset) {
+            if (!container) return 0;
+            if (container.nodeType === Node.TEXT_NODE) {
+                const base = textNodeStartPos.get(container) || 0;
+                return base + offset;
+            }
+            if (container.nodeType === Node.ELEMENT_NODE) {
+                const base = elementStartPos.get(container) || 0;
+                let total = 0;
+                let i = 0;
+                let child = container.firstChild;
+                while (child && i < offset) {
+                    total += logicalLength(child);
+                    child = child.nextSibling;
+                    i++;
+                }
+                return base + total;
+            }
+            return 0;
+        }
+
+        const start = positionFor(selectionRange.startContainer, selectionRange.startOffset);
+        const end = positionFor(selectionRange.endContainer, selectionRange.endOffset);
+        return { start, end };
+    }
+
     // 텍스트 선택 중
     documentText.addEventListener('mouseup', function(e) {
         if (!isSelecting) return;
@@ -816,46 +899,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 selectedText = text;
                 
-                // 선택된 텍스트의 원본 텍스트에서의 위치 계산
-                const originalText = documentText.dataset.originalText;
-                
-                // 선택된 텍스트를 원본 텍스트에서 찾기
+                // DOM Range를 기반으로 정확한 오프셋 계산 (중복 문자열 대응)
                 let startOffset = -1;
                 let endOffset = -1;
-                
-                // 원본 텍스트에서 정확히 일치하는 텍스트 찾기
-                const textIndex = originalText.indexOf(text);
-                if (textIndex !== -1) {
-                    startOffset = textIndex;
-                    endOffset = textIndex + text.length;
-                } else {
-                    // 부분 매칭으로 찾기 (공백 제거 후 비교)
-                    const cleanText = text.replace(/\s+/g, '');
-                    const cleanOriginal = originalText.replace(/\s+/g, '');
-                    const cleanIndex = cleanOriginal.indexOf(cleanText);
-                    
-                    if (cleanIndex !== -1) {
-                        // 원본 텍스트에서 해당 위치 찾기
-                        let originalIndex = 0;
-                        let cleanIndexCount = 0;
-                        
-                        for (let i = 0; i < originalText.length; i++) {
-                            if (!/\s/.test(originalText[i])) {
-                                if (cleanIndexCount === cleanIndex) {
-                                    startOffset = i;
-                                    break;
-                                }
-                                cleanIndexCount++;
-                            }
-                            originalIndex++;
-                        }
-                        
-                        if (startOffset !== -1) {
-                            endOffset = startOffset + text.replace(/\s+/g, '').length;
-                        }
-                    }
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    const offsets = computeOffsetsFromSelection(documentText, range);
+                    startOffset = offsets.start;
+                    endOffset = offsets.end;
                 }
-                
+
                 if (startOffset !== -1 && endOffset !== -1) {
                     selectionStart = startOffset;
                     selectionEnd = endOffset;
