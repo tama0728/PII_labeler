@@ -9,5 +9,6 @@ urlpatterns = [
     path('documents/download/', views.document_download, name='document_download'),
     path('documents/download/jsonl/', views.download_jsonl, name='download_jsonl'),
     path('api/add-pii-tag/', views.add_pii_tag, name='add_pii_tag'),
+    path('api/delete-pii-tag/', views.delete_pii_tag, name='delete_pii_tag'),
     path('register/', views.register, name='register'),
 ]
