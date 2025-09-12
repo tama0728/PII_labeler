@@ -293,9 +293,38 @@
                         </a>
                         <h4 class="mb-0">{{ document.data_id }}</h4>
                     </div>
-                    <div>
-                        <span class="badge bg-secondary">{{ document.created_at|date:"Y-m-d H:i" }}</span>
-                        <span class="badge bg-info">{{ pii_tags.count }} PII 태그</span>
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <span class="badge bg-light text-dark mx-1">Ctrl + ←, →</span>
+                            <span class="text-muted me-2">이전, 다음 문서</span>
+                            {% if prev_document %}
+                            <a href="{% url 'document_detail' prev_document.pk %}" class="btn btn-outline-primary btn-sm" title="이전 문서: {{ prev_document.data_id }} (Ctrl + ←)">
+                                <i class="fas fa-chevron-left"></i> 이전
+                                <small class="d-block">{{ prev_document.data_id }}</small>
+                            </a>
+                            {% else %}
+                            <button class="btn btn-outline-secondary btn-sm" disabled title="첫 번째 문서입니다">
+                                <i class="fas fa-chevron-left"></i> 이전
+                                <small class="d-block">-</small>
+                            </button>
+                            {% endif %}
+                            
+                            {% if next_document %}
+                            <a href="{% url 'document_detail' next_document.pk %}" class="btn btn-outline-primary btn-sm ms-2" title="다음 문서: {{ next_document.data_id }} (Ctrl + →)">
+                                다음 <i class="fas fa-chevron-right"></i>
+                                <small class="d-block">{{ next_document.data_id }}</small>
+                            </a>
+                            {% else %}
+                            <button class="btn btn-outline-secondary btn-sm ms-2" disabled title="마지막 문서입니다">
+                                다음 <i class="fas fa-chevron-right"></i>
+                                <small class="d-block">-</small>
+                            </button>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <span class="badge bg-secondary">{{ document.created_at|date:"Y-m-d H:i" }}</span>
+                            <span class="badge bg-info">{{ pii_tags.count }} PII 태그</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -876,6 +905,30 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // 키보드 단축키로 문서 네비게이션
+    document.addEventListener('keydown', function(e) {
+        // 입력 필드에 포커스가 있는 경우 단축키 비활성화
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+            return;
+        }
+        
+        // Ctrl + ← : 이전 문서
+        if (e.ctrlKey && e.key === 'ArrowLeft') {
+            e.preventDefault();
+            {% if prev_document %}
+            window.location.href = "{% url 'document_detail' prev_document.pk %}";
+            {% endif %}
+        }
+        
+        // Ctrl + → : 다음 문서
+        if (e.ctrlKey && e.key === 'ArrowRight') {
+            e.preventDefault();
+            {% if next_document %}
+            window.location.href = "{% url 'document_detail' next_document.pk %}";
+            {% endif %}
+        }
+    });
+
     // 페이지 로드 시 메타데이터 초기 표시
     document.addEventListener('DOMContentLoaded', function() {
         const metadata = {

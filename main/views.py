@@ -32,10 +32,26 @@ def document_detail(request, pk):
     document = get_object_or_404(Document, pk=pk)
     pii_tags = document.pii_tags.all()
     pii_categories = PIICategory.objects.all()
+    
+    # 이전/다음 문서 찾기
+    all_documents = Document.objects.all().order_by('id')
+    document_ids = list(all_documents.values_list('id', flat=True))
+    
+    current_index = document_ids.index(pk)
+    prev_document = None
+    next_document = None
+    
+    if current_index > 0:
+        prev_document = all_documents[current_index - 1]
+    if current_index < len(document_ids) - 1:
+        next_document = all_documents[current_index + 1]
+    
     return render(request, 'main/document_detail.html', {
         'document': document,
         'pii_tags': pii_tags,
-        'pii_categories': pii_categories
+        'pii_categories': pii_categories,
+        'prev_document': prev_document,
+        'next_document': next_document
     })
 
 @login_required
