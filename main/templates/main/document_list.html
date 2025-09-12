@@ -1,0 +1,49 @@
+{% extends 'main/base.html' %}
+
+{% block title %}문서 목록 - PII Labeler{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-list"></i> 내 문서</h2>
+    <a href="{% url 'document_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> 새 문서
+    </a>
+</div>
+
+{% if documents %}
+<div class="row">
+    {% for document in documents %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">{{ document.title }}</h5>
+                <p class="card-text">
+                    <small class="text-muted">
+                        <i class="fas fa-calendar"></i> {{ document.created_at|date:"Y-m-d H:i" }}
+                    </small>
+                </p>
+                <p class="card-text">{{ document.content|truncatewords:20 }}</p>
+            </div>
+            <div class="card-footer bg-transparent">
+                <div class="d-flex justify-content-between">
+                    <span class="badge bg-info">
+                        <i class="fas fa-tags"></i> {{ document.pii_tags.count }} 태그
+                    </span>
+                    <a href="{% url 'document_detail' document.pk %}" class="btn btn-sm btn-outline-primary">보기</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5">
+    <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+    <h4 class="text-muted">아직 문서가 없습니다</h4>
+    <p class="text-muted">첫 번째 문서를 생성해보세요!</p>
+    <a href="{% url 'document_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> 새 문서 생성
+    </a>
+</div>
+{% endif %}
+{% endblock %}
