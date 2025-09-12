@@ -127,28 +127,68 @@ def add_pii_tag(request):
     """PII 태그 추가 (AJAX)"""
     if request.method == 'POST':
         try:
-            data = json.loads(request.body)
+            # Form 데이터 또는 JSON 데이터 처리
+            if request.content_type == 'application/json':
+                data = json.loads(request.body)
+                document_id = data.get('document_id')
+                pii_category_value = data.get('pii_category')
+                span_text = data.get('span_text')
+                start_offset = data.get('start_offset')
+                end_offset = data.get('end_offset')
+                span_id = data.get('span_id', '')
+                entity_id = data.get('entity_id', '')
+                annotator = data.get('annotator', '')
+                identifier_type = data.get('identifier_type', '')
+                confidence = data.get('confidence', 0.0)
+            else:
+                # Form 데이터 처리
+                document_id = request.POST.get('document_id')
+                pii_category_value = request.POST.get('pii_category_value')
+                span_text = request.POST.get('span_text')
+                start_offset = request.POST.get('start_offset')
+                end_offset = request.POST.get('end_offset')
+                span_id = request.POST.get('span_id', '')
+                entity_id = request.POST.get('entity_id', '')
+                annotator = request.POST.get('annotator', '')
+                identifier_type = request.POST.get('identifier_type', '')
+                confidence = 0.0
             
-            document_id = data.get('document_id')
-            pii_category_value = data.get('pii_category')
-            start_pos = data.get('start_offset')
-            end_pos = data.get('end_offset')
-            span_text = data.get('span_text')
-            confidence = data.get('confidence', 0.0)
+            # 필수 필드 검증
+            if not all([document_id, pii_category_value, span_text, start_offset, end_offset]):
+                return JsonResponse({
+                    'success': False,
+                    'message': '필수 필드가 누락되었습니다.'
+                })
             
+            # 문서 조회
             document = get_object_or_404(Document, pk=document_id)
             pii_category = get_object_or_404(PIICategory, value=pii_category_value)
             
+            # 중복 태그 검사 (같은 위치에 같은 태그가 있는지)
+            existing_tag = PIITag.objects.filter(
+                document=document,
+                start_offset=start_offset,
+                end_offset=end_offset,
+                pii_category=pii_category
+            ).first()
+            
+            if existing_tag:
+                return JsonResponse({
+                    'success': False,
+                    'message': '해당 위치에 이미 같은 태그가 존재합니다.'
+                })
+            
+            # PII 태그 생성
             pii_tag = PIITag.objects.create(
                 document=document,
                 pii_category=pii_category,
                 span_text=span_text,
-                start_offset=start_pos,
-                end_offset=end_pos,
-                span_id=data.get('span_id', ''),
-                entity_id=data.get('entity_id', ''),
-                annotator=data.get('annotator', ''),
-                identifier_type=data.get('identifier_type', ''),
+                start_offset=int(start_offset),
+                end_offset=int(end_offset),
+                span_id=span_id,
+                entity_id=entity_id,
+                annotator=annotator,
+                identifier_type=identifier_type,
                 confidence=confidence,
                 created_by=request.user
             )
