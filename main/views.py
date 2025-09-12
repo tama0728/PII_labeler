@@ -51,24 +51,67 @@ def document_create(request):
                 lines = content.strip().split('\n')
                 
                 created_count = 0
+                total_tags = 0
+                
                 for line in lines:
                     if line.strip():
                         try:
                             data = json.loads(line)
+                            
+                            # metadata에서 정보 추출
+                            metadata = data.get('metadata', {})
+                            provenance = metadata.get('provenance', {})
+                            
+                            # Document 생성
                             document = Document.objects.create(
-                                data_id=data.get('data_id', ''),
-                                number_of_subjects=data.get('number_of_subjects', ''),
-                                dialog_type=data.get('dialog_type', ''),
-                                turn_cnt=data.get('turn_cnt', ''),
-                                doc_id=data.get('doc_id', ''),
+                                data_id=metadata.get('data_id', ''),
+                                number_of_subjects=str(metadata.get('number_of_subjects', '')),
+                                dialog_type=provenance.get('dialog_type', ''),
+                                turn_cnt=str(provenance.get('turn_cnt', '')),
+                                doc_id=provenance.get('doc_id', ''),
                                 text=data.get('text', ''),
                                 created_by=request.user
                             )
+                            
+                            # entities에서 PII 태그 생성
+                            entities = data.get('entities', [])
+                            for entity in entities:
+                                try:
+                                    # PII 카테고리 찾기
+                                    pii_category = PIICategory.objects.filter(
+                                        value=entity.get('entity_type')
+                                    ).first()
+                                    
+                                    if pii_category:
+                                        PIITag.objects.create(
+                                            document=document,
+                                            pii_category=pii_category,
+                                            span_text=entity.get('span_text', ''),
+                                            start_offset=entity.get('start_offset', 0),
+                                            end_offset=entity.get('end_offset', 0),
+                                            span_id=entity.get('span_id', ''),
+                                            entity_id=entity.get('entity_id', ''),
+                                            annotator=entity.get('annotator', ''),
+                                            identifier_type=entity.get('identifier_type', ''),
+                                            confidence=1.0,  # 기존 태그는 신뢰도 1.0으로 설정
+                                            created_by=request.user
+                                        )
+                                        total_tags += 1
+                                except Exception as e:
+                                    # 개별 태그 생성 실패는 로그만 남기고 계속 진행
+                                    print(f"태그 생성 실패: {e}")
+                                    continue
+                            
                             created_count += 1
-                        except json.JSONDecodeError:
+                            
+                        except json.JSONDecodeError as e:
+                            print(f"JSON 파싱 오류: {e}")
+                            continue
+                        except Exception as e:
+                            print(f"문서 처리 오류: {e}")
                             continue
                 
-                messages.success(request, f'{created_count}개의 문서가 성공적으로 업로드되었습니다.')
+                messages.success(request, f'{created_count}개의 문서와 {total_tags}개의 PII 태그가 성공적으로 업로드되었습니다.')
                 return redirect('document_list')
                 
             except Exception as e:
@@ -88,9 +131,9 @@ def add_pii_tag(request):
             
             document_id = data.get('document_id')
             pii_category_value = data.get('pii_category')
-            start_pos = data.get('start_position')
-            end_pos = data.get('end_position')
-            tagged_text = data.get('tagged_text')
+            start_pos = data.get('start_offset')
+            end_pos = data.get('end_offset')
+            span_text = data.get('span_text')
             confidence = data.get('confidence', 0.0)
             
             document = get_object_or_404(Document, pk=document_id)
@@ -99,9 +142,13 @@ def add_pii_tag(request):
             pii_tag = PIITag.objects.create(
                 document=document,
                 pii_category=pii_category,
-                start_position=start_pos,
-                end_position=end_pos,
-                tagged_text=tagged_text,
+                span_text=span_text,
+                start_offset=start_pos,
+                end_offset=end_pos,
+                span_id=data.get('span_id', ''),
+                entity_id=data.get('entity_id', ''),
+                annotator=data.get('annotator', ''),
+                identifier_type=data.get('identifier_type', ''),
                 confidence=confidence,
                 created_by=request.user
             )

@@ -42,9 +42,19 @@ class PIITag(models.Model):
     """PII 태그 모델"""
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='pii_tags', verbose_name="문서")
     pii_category = models.ForeignKey(PIICategory, on_delete=models.CASCADE, verbose_name="PII 카테고리")
-    start_position = models.IntegerField(verbose_name="시작 위치")
-    end_position = models.IntegerField(verbose_name="끝 위치")
-    tagged_text = models.CharField(max_length=500, verbose_name="태그된 텍스트")
+    
+    # 기본 태그 정보
+    span_text = models.CharField(max_length=500, verbose_name="태그된 텍스트")
+    start_offset = models.IntegerField(verbose_name="시작 오프셋")
+    end_offset = models.IntegerField(verbose_name="끝 오프셋")
+    
+    # 추가 메타데이터 필드들
+    span_id = models.CharField(max_length=100, blank=True, verbose_name="Span ID")
+    entity_id = models.CharField(max_length=100, blank=True, verbose_name="Entity ID")
+    annotator = models.CharField(max_length=100, blank=True, verbose_name="주석자")
+    identifier_type = models.CharField(max_length=100, blank=True, verbose_name="식별자 유형")
+    
+    # 시스템 필드들
     confidence = models.FloatField(default=0.0, verbose_name="신뢰도")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일")
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="작성자")
@@ -52,7 +62,7 @@ class PIITag(models.Model):
     class Meta:
         verbose_name = "PII 태그"
         verbose_name_plural = "PII 태그들"
-        ordering = ['start_position']
+        ordering = ['start_offset']
     
     def __str__(self):
-        return f"{self.document.data_id} - {self.pii_category.value}"
+        return f"{self.document.data_id} - {self.pii_category.value}: {self.span_text}"

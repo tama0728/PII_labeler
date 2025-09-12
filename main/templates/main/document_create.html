@@ -15,7 +15,13 @@
                     <ul class="mb-0">
                         <li>JSONL (JSON Lines) 형식의 파일을 업로드하세요</li>
                         <li>각 줄은 하나의 JSON 객체여야 합니다</li>
-                        <li>필수 필드: <code>data_id</code>, <code>number_of_subjects</code>, <code>dialog_type</code>, <code>turn_cnt</code>, <code>doc_id</code>, <code>text</code></li>
+                        <li><strong>JSON 구조:</strong></li>
+                        <ul class="mt-2">
+                            <li><code>metadata</code>: 문서 메타데이터 (data_id, number_of_subjects, provenance)</li>
+                            <li><code>text</code>: 문서 텍스트 내용</li>
+                            <li><code>entities</code>: PII 태그 정보 (entity_type, span_text, start_offset, end_offset)</li>
+                        </ul>
+                        <li class="mt-2"><strong>자동 처리:</strong> 기존 PII 태그들이 자동으로 데이터베이스에 저장됩니다</li>
                     </ul>
                 </div>
                 

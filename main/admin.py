@@ -19,7 +19,20 @@ class DocumentAdmin(admin.ModelAdmin):
 
 @admin.register(PIITag)
 class PIITagAdmin(admin.ModelAdmin):
-    list_display = ['document', 'pii_category', 'tagged_text', 'confidence', 'created_by', 'created_at']
-    list_filter = ['pii_category', 'confidence', 'created_at', 'created_by']
-    search_fields = ['tagged_text', 'document__data_id']
+    list_display = ['document', 'pii_category', 'span_text', 'start_offset', 'end_offset', 'confidence', 'created_by', 'created_at']
+    list_filter = ['pii_category', 'confidence', 'created_at', 'created_by', 'annotator']
+    search_fields = ['span_text', 'document__data_id', 'span_id', 'entity_id']
     readonly_fields = ['created_at']
+    fieldsets = (
+        ('기본 정보', {
+            'fields': ('document', 'pii_category', 'span_text', 'start_offset', 'end_offset')
+        }),
+        ('메타데이터', {
+            'fields': ('span_id', 'entity_id', 'annotator', 'identifier_type'),
+            'classes': ('collapse',)
+        }),
+        ('시스템 정보', {
+            'fields': ('confidence', 'created_by', 'created_at'),
+            'classes': ('collapse',)
+        }),
+    )

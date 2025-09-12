@@ -95,7 +95,10 @@
                                 {{ tag.pii_category.value }}
                             </span>
                             <div class="mt-1">
-                                <strong>{{ tag.tagged_text }}</strong>
+                                <strong>{{ tag.span_text }}</strong>
+                                <small class="text-muted d-block">
+                                    위치: {{ tag.start_offset }}-{{ tag.end_offset }}
+                                </small>
                             </div>
                             <small class="text-muted">
                                 신뢰도: {{ tag.confidence|floatformat:2 }}
@@ -165,20 +168,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     saveBtn.addEventListener('click', function() {
         const piiType = document.getElementById('pii-type').value;
-        const taggedText = document.getElementById('tagged-text').value;
+        const spanText = document.getElementById('tagged-text').value;
         const confidence = parseFloat(document.getElementById('confidence').value);
         
-        if (!piiType || !taggedText) {
+        if (!piiType || !spanText) {
             alert('모든 필드를 입력해주세요.');
             return;
         }
         
         // 간단한 위치 찾기 (실제로는 더 정교한 로직 필요)
         const content = document.getElementById('document-content').textContent;
-        const startPos = content.indexOf(taggedText);
-        const endPos = startPos + taggedText.length;
+        const startOffset = content.indexOf(spanText);
+        const endOffset = startOffset + spanText.length;
         
-        if (startPos === -1) {
+        if (startOffset === -1) {
             alert('문서에서 해당 텍스트를 찾을 수 없습니다.');
             return;
         }
@@ -186,9 +189,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const data = {
             document_id: {{ document.pk }},
             pii_category: piiType,
-            start_position: startPos,
-            end_position: endPos,
-            tagged_text: taggedText,
+            span_text: spanText,
+            start_offset: startOffset,
+            end_offset: endOffset,
+            span_id: '',
+            entity_id: '',
+            annotator: '{{ user.username }}',
+            identifier_type: '',
             confidence: confidence
         };
         
