@@ -329,10 +329,12 @@ def update_pii_tag(request):
                 tag_id = data.get('tag_id')
                 pii_category_value = data.get('pii_category_value')
                 identifier_type = data.get('identifier_type', '')
+                entity_id = data.get('entity_id', '')
             else:
                 tag_id = request.POST.get('tag_id')
                 pii_category_value = request.POST.get('pii_category_value')
                 identifier_type = request.POST.get('identifier_type', '')
+                entity_id = request.POST.get('entity_id', '')
             
             if not tag_id or not pii_category_value:
                 return JsonResponse({
@@ -353,10 +355,19 @@ def update_pii_tag(request):
             # PII 카테고리 조회
             pii_category = get_object_or_404(PIICategory, value=pii_category_value)
             
+            # 식별자 유형이 공백이면 default로 설정
+            if not identifier_type:
+                identifier_type = 'default'
+            
             # 태그 업데이트
             pii_tag.pii_category = pii_category
             pii_tag.identifier_type = identifier_type
             pii_tag.annotator = request.user.username  # 어노테이터를 현재 사용자로 업데이트
+            
+            # entity_id 업데이트 (제공된 경우)
+            if entity_id:
+                pii_tag.entity_id = entity_id
+            
             pii_tag.save()
             
             return JsonResponse({

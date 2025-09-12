@@ -403,11 +403,19 @@
                 
                 <div class="field-group">
                     <label>식별자 유형 (identifier_type):</label>
-                    <select id="identifierType">
+                    <select id="identifierType" onchange="updateIdentifierTypeAndSave()">
                         <option value="default">default (마스킹 필요 없음)</option>
                         <option value="direct">직접식별자</option>
                         <option value="quasi">준식별자</option>
                     </select>
+                </div>
+                
+                <div class="field-group">
+                    <label>연결된 어노테이션 (entity_id):</label>
+                    <select id="linkedAnnotation" onchange="updateEntityIdAndSave()">
+                        <option value="">독립 어노테이션</option>
+                    </select>
+                    <small class="help-text">같은 객체를 나타내는 어노테이션들을 연결합니다.</small>
                 </div>
                 
                 <div class="field-group">
@@ -461,6 +469,212 @@
 
 {% block extra_js %}
 <script>
+// 전역 함수들
+function updateLinkedAnnotationDropdown(currentTagId) {
+    const dropdown = document.getElementById('linkedAnnotation');
+    dropdown.innerHTML = '<option value="">독립 어노테이션</option>';
+
+    // 현재 문서의 모든 어노테이션을 엔티티 그룹으로 묶기
+    const allTags = Array.from(document.querySelectorAll('.existing-pii-tag')).map(el => JSON.parse(el.dataset.tagData));
+    const currentTagData = JSON.parse(document.querySelector(`[data-tag-id="${currentTagId}"]`).dataset.tagData);
+
+    const entityIdToTags = new Map();
+    allTags.forEach(tag => {
+        if (!entityIdToTags.has(tag.entity_id)) {
+            entityIdToTags.set(tag.entity_id, []);
+        }
+        entityIdToTags.get(tag.entity_id).push(tag);
+    });
+
+    // 각 엔티티 그룹의 대표 텍스트: span_id == entity_id 인 태그의 span_text
+    entityIdToTags.forEach((tags, entityId) => {
+        if (!entityId || tags.some(t => t.id === currentTagId)) {
+            // 현재 태그의 그룹도 옵션으로 표시(자기 연결 유지), entityId 비어있으면 스킵
+        }
+        // 대표 텍스트 선택
+        let representativeText = '';
+        const rep = tags.find(t => t.span_id && t.entity_id && String(t.span_id) === String(t.entity_id));
+        if (rep) {
+            representativeText = rep.text;
+        } else {
+            representativeText = tags[0]?.text || '';
+        }
+
+        // 옵션 생성 (값은 entity_id)
+        const option = document.createElement('option');
+        option.value = entityId;
+        option.textContent = `${representativeText}`;
+        if (String(entityId) === String(currentTagData.entity_id)) {
+            option.selected = true;
+        }
+        dropdown.appendChild(option);
+    });
+}
+
+function updateEntityIdAndSave() {
+    const dropdown = document.getElementById('linkedAnnotation');
+    const selectedEntityId = dropdown.value; // entity_id 값
+    const currentTagElement = document.querySelector('.existing-pii-tag.selected');
+    
+    if (!currentTagElement) {
+        console.log('선택된 태그가 없습니다.');
+        return;
+    }
+    
+    const currentTagData = JSON.parse(currentTagElement.dataset.tagData);
+    let newEntityId = '';
+    
+    if (!selectedEntityId) {
+        // 독립 어노테이션으로 설정 (span_id와 동일)
+        newEntityId = currentTagData.span_id;
+    } else {
+        // 선택된 entity_id 그룹과 연결
+        const allTagElements = document.querySelectorAll('.existing-pii-tag');
+        const connectedTags = [];
+        allTagElements.forEach(tagElement => {
+            const tagData = JSON.parse(tagElement.dataset.tagData);
+            if (String(tagData.entity_id) === String(selectedEntityId)) {
+                connectedTags.push(tagElement);
+            }
+        });
+        
+        // 현재 선택된 태그도 추가
+        connectedTags.push(currentTagElement);
+
+        // 현재 태그가 대표( span_id == entity_id )였다면,
+        // 자신의 span_id에 연결되어 있던 다른 태그들도 같이 연결
+        if (String(currentTagData.span_id) === String(currentTagData.entity_id)) {
+            allTagElements.forEach(tagElement => {
+                const tagData = JSON.parse(tagElement.dataset.tagData);
+                if (String(tagData.entity_id) === String(currentTagData.span_id)) {
+                    // 중복 추가 방지
+                    if (!connectedTags.includes(tagElement)) {
+                        connectedTags.push(tagElement);
+                    }
+                }
+            });
+        }
+        
+        // 가장 작은 span_id를 entity_id로 사용
+        const minSpanId = Math.min(...connectedTags.map(tag => {
+            const data = JSON.parse(tag.dataset.tagData);
+            return parseInt(data.span_id) || 0;
+        }));
+        
+        newEntityId = minSpanId.toString();
+        
+        // 모든 연결된 태그의 entity_id 업데이트 및 서버 저장
+        connectedTags.forEach(tagElement => {
+            updateTagEntityId(tagElement, newEntityId);
+        });
+    }
+    
+    // 현재 태그의 entity_id 업데이트
+    updateTagEntityId(currentTagElement, newEntityId);
+    
+    // 서버에 저장
+    // 1) 현재 태그 저장
+    saveTagUpdate(currentTagData.id, currentTagData.category, document.getElementById('identifierType').value, newEntityId);
+    // 2) 대표 이동 시 함께 연결된 태그들도 저장
+    if (selectedEntityId) {
+        const allTagElements = document.querySelectorAll('.existing-pii-tag');
+        allTagElements.forEach(tagElement => {
+            const data = JSON.parse(tagElement.dataset.tagData);
+            if (String(data.entity_id) === String(newEntityId) && data.id !== currentTagData.id) {
+                const idType = data.identifier_type || document.getElementById('identifierType').value || 'default';
+                saveTagUpdate(data.id, data.category, idType, newEntityId);
+            }
+        });
+    }
+}
+
+function updateIdentifierTypeAndSave() {
+    const currentTagElement = document.querySelector('.existing-pii-tag.selected');
+    
+    if (!currentTagElement) {
+        console.log('선택된 태그가 없습니다.');
+        return;
+    }
+    
+    const currentTagData = JSON.parse(currentTagElement.dataset.tagData);
+    const identifierType = document.getElementById('identifierType').value || 'default';
+    
+    // 서버에 저장
+    saveTagUpdate(currentTagData.id, currentTagData.category, identifierType, currentTagData.entity_id);
+}
+
+function saveTagUpdate(tagId, piiCategoryValue, identifierType, entityId) {
+    const formData = new FormData();
+    formData.append('tag_id', tagId);
+    formData.append('pii_category_value', piiCategoryValue);
+    formData.append('identifier_type', identifierType);
+    formData.append('entity_id', entityId);
+    
+    fetch('{% url "update_pii_tag" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('태그가 성공적으로 업데이트되었습니다.');
+            // JSON 표시 업데이트
+            updateJsonDisplay();
+        } else {
+            console.error('태그 업데이트 실패:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('태그 업데이트 중 오류 발생:', error);
+    });
+}
+
+function updateTagEntityId(tagElement, newEntityId) {
+    const tagData = JSON.parse(tagElement.dataset.tagData);
+    tagData.entity_id = newEntityId;
+    tagElement.dataset.tagData = JSON.stringify(tagData);
+    
+    // JSON 표시 업데이트
+    updateJsonDisplay();
+}
+
+function updateCurrentTagEntityId(newEntityId) {
+    const currentTagElement = document.querySelector('.existing-pii-tag.selected');
+    if (currentTagElement) {
+        const tagData = JSON.parse(currentTagElement.dataset.tagData);
+        if (newEntityId) {
+            tagData.entity_id = newEntityId;
+        } else {
+            // 독립 어노테이션으로 설정 (span_id와 동일)
+            tagData.entity_id = tagData.span_id;
+        }
+        currentTagElement.dataset.tagData = JSON.stringify(tagData);
+        updateJsonDisplay();
+    }
+}
+
+function updateJsonDisplay() {
+    const currentTagElement = document.querySelector('.existing-pii-tag.selected');
+    if (currentTagElement) {
+        const tagData = JSON.parse(currentTagElement.dataset.tagData);
+        const jsonData = {
+            span_text: tagData.text,
+            entity_type: tagData.category,
+            start_offset: tagData.start,
+            end_offset: tagData.end,
+            span_id: tagData.span_id,
+            entity_id: tagData.entity_id,
+            annotator: tagData.annotator || "Anonymous",
+            identifier_type: tagData.identifier_type || 'default'
+        };
+        
+        document.getElementById('jsonDisplay').value = JSON.stringify(jsonData, null, 2);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     let selectedTagType = null;
     let selectedText = '';
@@ -804,6 +1018,13 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('entityType').value = tagData.category;
             document.getElementById('annotator').value = tagData.annotator || 'Anonymous';
             
+            // 식별자 유형 설정
+            const identifierTypeSelect = document.getElementById('identifierType');
+            identifierTypeSelect.value = tagData.identifier_type || 'default';
+            
+            // 연결 드롭박스 업데이트
+            updateLinkedAnnotationDropdown(tagId);
+            
             // JSON 정보 생성
             const jsonData = {
                 span_text: tagData.text,
@@ -813,7 +1034,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 span_id: tagData.span_id,
                 entity_id: tagData.entity_id,
                 annotator: tagData.annotator || "Anonymous",
-                identifier_type: document.getElementById('identifierType').value
+                identifier_type: tagData.identifier_type || 'default'
             };
             
             document.getElementById('jsonDisplay').value = JSON.stringify(jsonData, null, 2);
@@ -854,7 +1075,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 기존 태그 타입 업데이트 함수
     function updateExistingTagType(tagElement, newType) {
         const tagId = tagElement.dataset.tagId;
-        const identifierType = document.getElementById('identifierType').value;
+        const identifierType = tagData.identifier_type || 'default';
         
         const formData = new FormData();
         formData.append('tag_id', tagId);
