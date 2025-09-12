@@ -24,7 +24,7 @@ services:
     volumes:
       - .:/code
     ports:
-      - "8080:8080"  # 외부 포트 8080로 변경
+      - "8008:8008"  # 외부 포트 8008로 변경
     depends_on:
       db:
         condition: service_healthy
