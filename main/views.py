@@ -137,6 +137,9 @@ def document_create(request):
                                         if not annotator_value:
                                             annotator_value = "Anonymous"
                                         
+                                        # identifier_type 비어있으면 default로 설정
+                                        identifier_type_value = entity.get('identifier_type', '') or 'default'
+
                                         PIITag.objects.create(
                                             document=document,
                                             pii_category=pii_category,
@@ -146,7 +149,7 @@ def document_create(request):
                                             span_id=span_id,
                                             entity_id=entity_id,
                                             annotator=annotator_value,
-                                            identifier_type=entity.get('identifier_type', ''),
+                                            identifier_type=identifier_type_value,
                                             confidence=1.0,  # 기존 태그는 신뢰도 1.0으로 설정
                                             created_by=request.user
                                         )
@@ -243,6 +246,10 @@ def add_pii_tag(request):
             if not annotator:
                 annotator = "Anonymous"
             
+            # identifier_type 비어있으면 default로 설정
+            if not identifier_type:
+                identifier_type = 'default'
+
             # PII 태그 생성
             pii_tag = PIITag.objects.create(
                 document=document,
