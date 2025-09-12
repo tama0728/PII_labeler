@@ -287,7 +287,12 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h4 class="mb-0">{{ document.data_id }}</h4>
+                    <div class="d-flex align-items-center">
+                        <a href="{% url 'document_list' %}" class="btn btn-outline-secondary btn-sm me-3">
+                            <i class="fas fa-arrow-left"></i> 목록으로
+                        </a>
+                        <h4 class="mb-0">{{ document.data_id }}</h4>
+                    </div>
                     <div>
                         <span class="badge bg-secondary">{{ document.created_at|date:"Y-m-d H:i" }}</span>
                         <span class="badge bg-info">{{ pii_tags.count }} PII 태그</span>
@@ -515,7 +520,7 @@ document.addEventListener('DOMContentLoaded', function() {
     documentText.addEventListener('mousedown', function(e) {
         isSelecting = true;
         documentText.style.userSelect = 'text';
-        
+
         // 기존 선택 정보 숨기기
         hideSelectionInfo();
     });
@@ -529,6 +534,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const text = selection.toString().trim();
             
             if (text && text.length > 0) {
+                // 모든 태그 버튼에서 selected 클래스 제거
+                tagButtons.forEach(btn => btn.classList.remove('selected'));
+                selectedTagType = null;
+                
+                // 모든 기존 태그에서 selected 클래스 제거
+                document.querySelectorAll('.existing-pii-tag').forEach(tag => {
+                    tag.classList.remove('selected');
+                });
                 selectedText = text;
                 
                 // 선택된 텍스트의 원본 텍스트에서의 위치 계산
@@ -574,7 +587,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (startOffset !== -1 && endOffset !== -1) {
                     selectionStart = startOffset;
                     selectionEnd = endOffset;
-                    
+
                     // 선택된 텍스트 표시
                     showSelectedTextInfo(text, startOffset, endOffset);
                 } else {
@@ -588,6 +601,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 선택된 텍스트 정보 표시 (라벨 선택 전)
     function showSelectedTextInfo(text, start, end) {
+        // 전역 변수 설정
+        selectedText = text;
+        selectionStart = start;
+        selectionEnd = end;
+        
         // 상세 정보 패널에 선택된 텍스트 표시
         document.getElementById('selectedText').value = text;
         document.getElementById('entityType').value = '';
@@ -641,6 +659,11 @@ document.addEventListener('DOMContentLoaded', function() {
         tagButtons.forEach(btn => btn.classList.remove('selected'));
         selectedTagType = null;
         
+        // 모든 기존 태그에서 selected 클래스 제거
+        document.querySelectorAll('.existing-pii-tag').forEach(tag => {
+            tag.classList.remove('selected');
+        });
+        
         // 문서 텍스트 커서 원래대로
         documentText.style.cursor = 'text';
         documentText.title = '';
@@ -652,6 +675,11 @@ document.addEventListener('DOMContentLoaded', function() {
         selectedText = '';
         selectionStart = 0;
         selectionEnd = 0;
+        
+        // 상세 정보 패널 초기화
+        document.getElementById('selectedText').value = '';
+        document.getElementById('entityType').value = '';
+        document.getElementById('jsonDisplay').value = '';
     }
     
     // PII 태그 추가 함수
