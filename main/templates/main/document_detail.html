@@ -301,9 +301,9 @@
     <div class="row mb-3">
         <div class="col-12">
             <div class="tag-instruction">
-                <div class="step">1. 태그 타입 선택</div>
+                <div class="step">1. 텍스트 드래그</div>
                 <span class="arrow">→</span>
-                <div class="step">2. 텍스트 드래그</div>
+                <div class="step">2. 라벨 선택</div>
                 <span class="arrow">→</span>
                 <div class="step">3. 태그 추가</div>
             </div>
@@ -480,32 +480,39 @@ document.addEventListener('DOMContentLoaded', function() {
     // 태그 버튼 클릭 처리
     tagButtons.forEach(button => {
         button.addEventListener('click', function() {
-            // 모든 버튼에서 selected 클래스 제거
-            tagButtons.forEach(btn => btn.classList.remove('selected'));
-            
-            // 클릭된 버튼에 selected 클래스 추가
-            this.classList.add('selected');
-            selectedTagType = this.dataset.tagType;
-            
             // 현재 선택된 태그가 있는지 확인
             const selectedTag = document.querySelector('.existing-pii-tag.selected');
             if (selectedTag) {
                 // 기존 태그의 타입을 변경
-                updateExistingTagType(selectedTag, selectedTagType);
+                const newTagType = this.dataset.tagType;
+                updateExistingTagType(selectedTag, newTagType);
+                
+                // 모든 버튼에서 selected 클래스 제거
+                tagButtons.forEach(btn => btn.classList.remove('selected'));
+                // 클릭된 버튼에 selected 클래스 추가
+                this.classList.add('selected');
+                selectedTagType = newTagType;
+            } else if (selectedText && selectedText.length > 0) {
+                // 텍스트가 선택된 상태에서 라벨 선택
+                const newTagType = this.dataset.tagType;
+                
+                // 모든 버튼에서 selected 클래스 제거
+                tagButtons.forEach(btn => btn.classList.remove('selected'));
+                // 클릭된 버튼에 selected 클래스 추가
+                this.classList.add('selected');
+                selectedTagType = newTagType;
+                
+                // 선택 정보 표시
+                showSelectionInfo(selectedText, selectionStart, selectionEnd);
             } else {
-                // 새 태그 추가 모드
-                documentText.style.cursor = 'crosshair';
-                documentText.title = '텍스트를 드래그하여 선택하세요';
+                // 아무것도 선택되지 않은 상태에서는 선택 불가
+                // 조용히 무시 (알림 메시지 제거)
             }
-            
-            console.log('선택된 태그 타입:', selectedTagType);
         });
     });
     
     // 텍스트 선택 시작
     documentText.addEventListener('mousedown', function(e) {
-        if (!selectedTagType) return;
-        
         isSelecting = true;
         documentText.style.userSelect = 'text';
         
@@ -515,7 +522,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 텍스트 선택 중
     documentText.addEventListener('mouseup', function(e) {
-        if (!selectedTagType || !isSelecting) return;
+        if (!isSelecting) return;
         
         setTimeout(() => {
             const selection = window.getSelection();
@@ -567,7 +574,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (startOffset !== -1 && endOffset !== -1) {
                     selectionStart = startOffset;
                     selectionEnd = endOffset;
-                    showSelectionInfo(text, startOffset, endOffset);
+                    
+                    // 선택된 텍스트 표시
+                    showSelectedTextInfo(text, startOffset, endOffset);
                 } else {
                     alert('선택된 텍스트를 원본 문서에서 찾을 수 없습니다.');
                 }
@@ -577,7 +586,15 @@ document.addEventListener('DOMContentLoaded', function() {
         isSelecting = false;
     });
     
-    // 선택 정보 표시
+    // 선택된 텍스트 정보 표시 (라벨 선택 전)
+    function showSelectedTextInfo(text, start, end) {
+        // 상세 정보 패널에 선택된 텍스트 표시
+        document.getElementById('selectedText').value = text;
+        document.getElementById('entityType').value = '';
+        document.querySelector('#selected-position').textContent = `위치: ${start}-${end}`;
+    }
+    
+    // 선택 정보 표시 (라벨 선택 후)
     function showSelectionInfo(text, start, end) {
         const selectedTagButton = document.querySelector('.pii-tag-btn.selected');
         const tagName = selectedTagButton ? selectedTagButton.textContent.split('\n')[0] : 'Unknown';
@@ -595,6 +612,10 @@ document.addEventListener('DOMContentLoaded', function() {
         selectedText = '';
         selectionStart = 0;
         selectionEnd = 0;
+        
+        // 상세 정보 패널 초기화
+        document.getElementById('selectedText').value = '';
+        document.getElementById('entityType').value = '';
     }
     
     // 태그 확인 버튼
@@ -626,6 +647,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 텍스트 선택 해제
         window.getSelection().removeAllRanges();
+        
+        // 선택된 텍스트 정보 초기화
+        selectedText = '';
+        selectionStart = 0;
+        selectionEnd = 0;
     }
     
     // PII 태그 추가 함수
