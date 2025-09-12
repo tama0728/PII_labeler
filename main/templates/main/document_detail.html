@@ -623,6 +623,23 @@ function saveTagUpdate(tagId, piiCategoryValue, identifierType, entityId) {
             console.log('태그가 성공적으로 업데이트되었습니다.');
             // JSON 표시 업데이트
             updateJsonDisplay();
+
+            // 로컬 데이터 동기화: identifier_type, entity_id 반영
+            const tagElement = document.querySelector(`[data-tag-id="${tagId}"]`);
+            if (tagElement) {
+                const localData = JSON.parse(tagElement.dataset.tagData);
+                localData.identifier_type = identifierType || 'default';
+                if (entityId) {
+                    localData.entity_id = entityId;
+                }
+                tagElement.dataset.tagData = JSON.stringify(localData);
+
+                // 현재 선택된 태그라면 드롭박스 값도 갱신
+                if (tagElement.classList.contains('selected')) {
+                    const identifierSelect = document.getElementById('identifierType');
+                    if (identifierSelect) identifierSelect.value = localData.identifier_type || 'default';
+                }
+            }
         } else {
             console.error('태그 업데이트 실패:', data.message);
         }
