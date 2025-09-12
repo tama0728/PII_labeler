@@ -28,13 +28,21 @@ cd PII_labeler
 
 ### 2. 환경 설정
 
+프로젝트는 `.env` 파일을 통해 환경변수를 관리합니다:
+
 ```bash
-# .env 파일 복사
+# .env 파일 복사 및 설정
 cp .env.example .env
 
 # .env 파일 편집 (필요시 데이터베이스 설정 수정)
 nano .env
 ```
+
+**주요 환경변수:**
+- `DEBUG`: 디버그 모드 활성화 (개발: True, 운영: False)
+- `SECRET_KEY`: Django 암호화 키 (운영환경에서는 반드시 변경)
+- `DB_*`: PostgreSQL 데이터베이스 연결 정보
+- `ALLOWED_HOSTS`: 허용된 호스트 목록
 
 ### 3. Docker를 사용한 실행 (권장)
 
@@ -83,34 +91,76 @@ python3 manage.py runserver
 
 ## 프로젝트 구조
 
+리팩토링된 구조로 코드가 모듈화되어 유지보수성이 향상되었습니다:
+
 ```
 PII_labeler/
 ├── main/                    # 메인 Django 앱
-│   ├── models.py           # 데이터 모델 (Document, PIITag)
-│   ├── views.py            # 뷰 함수들
+│   ├── models.py           # 데이터 모델 (Document, PIITag, PIICategory)
+│   ├── views.py            # 메인 뷰 (임포트 허브)
+│   ├── web_views.py        # 웹 페이지 뷰들 (템플릿 렌더링)
+│   ├── api_views.py        # API 뷰들 (JSON 응답)
+│   ├── services.py         # 비즈니스 로직 서비스 레이어
+│   ├── forms.py            # Django Forms (데이터 검증)
+│   ├── utils.py            # 유틸리티 함수들
 │   ├── urls.py             # URL 라우팅
 │   ├── admin.py            # Django Admin 설정
-│   └── templates/          # HTML 템플릿들
+│   ├── templates/          # HTML 템플릿들
+│   └── migrations/         # 데이터베이스 마이그레이션
 ├── pii_labeler/            # Django 프로젝트 설정
-│   ├── settings.py         # 프로젝트 설정 (PostgreSQL 설정 포함)
+│   ├── settings.py         # 프로젝트 설정 (환경변수 지원)
 │   ├── urls.py             # 메인 URL 설정
 │   └── wsgi.py             # WSGI 설정
 ├── requirements.txt        # Python 의존성
 ├── docker-compose.yml      # Docker Compose 설정
 ├── Dockerfile              # Docker 이미지 설정
-├── .env.example            # 환경변수 예시
+├── .env                    # 환경변수 (개발용)
+├── .env.example            # 환경변수 템플릿
+├── .gitignore              # Git 무시 파일 목록
 └── README.md               # 프로젝트 문서
 ```
 
+## 아키텍처
+
+프로젝트는 **레이어드 아키텍처**를 따르며, 각 레이어는 명확한 책임을 가집니다:
+
+### 레이어 구조
+
+1. **프레젠테이션 레이어**
+   - `web_views.py`: 웹 페이지 렌더링 (HTML 응답)
+   - `api_views.py`: REST API 엔드포인트 (JSON 응답)
+   - `forms.py`: 입력 데이터 검증
+
+2. **서비스 레이어**
+   - `services.py`: 비즈니스 로직 처리
+   - 트랜잭션 관리 및 복합 연산 처리
+
+3. **데이터 레이어**
+   - `models.py`: 데이터 모델 정의
+   - `utils.py`: 데이터 처리 유틸리티
+
+### 주요 개선사항
+
+- ✅ **단일 책임 원칙**: 각 모듈이 하나의 명확한 역할
+- ✅ **관심사 분리**: 비즈니스 로직과 프레젠테이션 로직 분리
+- ✅ **재사용성**: 공통 기능들의 모듈화
+- ✅ **테스트 용이성**: 각 레이어별 독립적 테스트 가능
+- ✅ **확장성**: 새로운 기능 추가 시 기존 코드 영향 최소화
+
 ## 데이터베이스 모델
 
+### PIICategory
+- PII 카테고리 정보 (이름, 배경색, 설명)
+
 ### Document
-- 문서 제목, 내용, 생성자, 생성/수정 시간
+- 문서 메타데이터 (data_id, dialog_type, turn_cnt 등)
+- 문서 텍스트 내용
+- 생성자 및 생성/수정 시간
 
 ### PIITag
-- PII 유형 (이름, 이메일, 전화번호 등)
-- 태그된 텍스트와 위치 정보
-- 신뢰도 점수
+- PII 태그 정보 (span_text, start/end_offset)
+- 메타데이터 (span_id, entity_id, annotator, identifier_type)
+- 신뢰도 점수 및 생성 정보
 
 ## 환경변수
 
@@ -153,7 +203,48 @@ python3 manage.py migrate
 ```bash
 # 테스트 실행
 python3 manage.py test
+
+# 특정 앱 테스트
+python3 manage.py test main
+
+# 커버리지와 함께 테스트 (coverage 패키지 설치 필요)
+pip install coverage
+coverage run --source='.' manage.py test
+coverage report
 ```
+
+### 코드 품질 관리
+
+```bash
+# 코드 스타일 검사 (flake8)
+pip install flake8
+flake8 main/ pii_labeler/
+
+# 코드 포맷팅 (black)
+pip install black
+black main/ pii_labeler/
+
+# Import 정리 (isort)
+pip install isort
+isort main/ pii_labeler/
+```
+
+### 개발 워크플로우
+
+1. **기능 개발**
+   - 새로운 기능은 서비스 레이어(`services.py`)에 비즈니스 로직 구현
+   - 필요시 유틸리티 함수는 `utils.py`에 추가
+   - 폼 검증이 필요하면 `forms.py`에 정의
+
+2. **뷰 개발**
+   - 웹 페이지: `web_views.py`에 템플릿 렌더링 뷰 추가
+   - API: `api_views.py`에 JSON 응답 뷰 추가
+
+3. **URL 라우팅**
+   - `urls.py`에 새로운 URL 패턴 추가
+
+4. **데이터베이스 변경**
+   - `models.py` 수정 후 마이그레이션 생성 및 적용
 
 ## 라이선스
 
