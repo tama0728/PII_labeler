@@ -269,8 +269,8 @@ def bulk_delete_documents(request):
 
 def download_jsonl(request):
     """JSONL 다운로드"""
-    document_ids = request.GET.getlist('document_ids')
-    documents = Document.objects.filter(id__in=document_ids) if document_ids else Document.objects.all()
+    document_ids = request.POST.getlist('document_ids')
+    documents = Document.objects.filter(id__in=document_ids)
     
     response = HttpResponse(content_type='application/jsonl')
     response['Content-Disposition'] = 'attachment; filename="documents.jsonl"'
