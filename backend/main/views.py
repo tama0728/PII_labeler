@@ -88,10 +88,17 @@ def document_create(request):
                                 if pii_category:
                                     span_id = entity.get('span_id', '')
                                     entity_id = entity.get('entity_id', '')
+                                    annotator = entity.get('annotator', 'Anonymous')
+                                    identifier_type = entity.get('identifier_type', 'default')
                                     if not span_id:
                                         span_id = PIITag.objects.filter(document=document).count()+1
                                     if not entity_id:
                                         entity_id = PIITag.objects.filter(document=document).count()+1
+                                    if not annotator:
+                                        annotator = 'Anonymous'
+                                    if not identifier_type:
+                                        identifier_type = 'default'
+                                    
                                     PIITag.objects.create(
                                         document=document,
                                         pii_category=pii_category,
@@ -100,8 +107,8 @@ def document_create(request):
                                         end_offset=entity.get('end_offset', 0),
                                         span_id=span_id,
                                         entity_id=entity_id,
-                                        annotator=entity.get('annotator', 'Anonymous'),
-                                        identifier_type=entity.get('identifier_type', 'default'),
+                                        annotator=annotator,
+                                        identifier_type=identifier_type,
                                         created_by=request.user
                                     )
                                 
