@@ -4,37 +4,45 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
-      POSTGRES_DB: pii_labeler_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${DB_NAME:-pii_labeler_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
     ports:
-      - "5433:5432"  # 외부 포트 5433로 변경
+      - "${DB_PORT:-5433}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  web:
-    build: .
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:8008"
-             python create_superuser.py
+  backend:
+    build: ./backend
     volumes:
-      - .:/code
+      - ./backend:/code
+      - ./frontend/templates:/code/templates
     ports:
-      - "8008:8008"  # 외부 포트 8008로 변경
+      - "${BACKEND_PORT:-8008}:8008"
     depends_on:
       db:
         condition: service_healthy
     environment:
-      - DEBUG=True
+      - DEBUG=${DEBUG:-True}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-here}
       - DB_HOST=db
-      - DB_PORT=5433
-      - DB_NAME=pii_labeler_db
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-pii_labeler_db}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      - TIME_ZONE=${TIME_ZONE:-Asia/Seoul}
+      - LANGUAGE_CODE=${LANGUAGE_CODE:-ko-kr}
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${FRONTEND_PORT:-8000}:80"
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:

@@ -18,6 +18,8 @@
         }
     </style>
     {% block extra_css %}{% endblock %}
+    <!-- CSRF Token -->
+    <meta name="csrf-token" content="{{ csrf_token }}">
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
@@ -80,11 +82,28 @@
 
     <footer class="footer">
         <div class="container text-center">
-            <p class="mb-0">&copy; 2024 PII Labeler. Django + PostgreSQL 기반 개인정보 식별 도구.</p>
+            <p class="mb-0">&copy; 2025 PII Labeler. Django + PostgreSQL 기반 개인정보 식별 도구.</p>
         </div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- CSRF Token Helper -->
+    <script>
+        // CSRF 토큰 가져오기
+        function getCSRFToken() {
+            return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        }
+        
+        // AJAX 요청용 헤더 설정
+        function getCSRFHeaders() {
+            return {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/x-www-form-urlencoded'
+            };
+        }
+    </script>
+    
     {% block extra_js %}{% endblock %}
 </body>
 </html>

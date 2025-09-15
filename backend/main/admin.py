@@ -1,0 +1,38 @@
+from django.contrib import admin
+from .models import Document, PIITag, PIICategory
+
+# Register your models here.
+
+@admin.register(PIICategory)
+class PIICategoryAdmin(admin.ModelAdmin):
+    list_display = ['value', 'background_color', 'description', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['value', 'description']
+    readonly_fields = ['created_at']
+
+@admin.register(Document)
+class DocumentAdmin(admin.ModelAdmin):
+    list_display = ['data_id', 'number_of_subjects', 'dialog_type', 'turn_cnt', 'doc_id', 'created_by', 'created_at', 'updated_at']
+    list_filter = ['created_at', 'updated_at', 'created_by']
+    search_fields = ['data_id', 'text']
+    readonly_fields = ['created_at', 'updated_at']
+
+@admin.register(PIITag)
+class PIITagAdmin(admin.ModelAdmin):
+    list_display = ['document', 'pii_category', 'span_text', 'start_offset', 'end_offset', 'confidence', 'created_by', 'created_at']
+    list_filter = ['pii_category', 'confidence', 'created_at', 'created_by', 'annotator']
+    search_fields = ['span_text', 'document__data_id', 'span_id', 'entity_id']
+    readonly_fields = ['created_at']
+    fieldsets = (
+        ('기본 정보', {
+            'fields': ('document', 'pii_category', 'span_text', 'start_offset', 'end_offset')
+        }),
+        ('메타데이터', {
+            'fields': ('span_id', 'entity_id', 'annotator', 'identifier_type'),
+            'classes': ('collapse',)
+        }),
+        ('시스템 정보', {
+            'fields': ('confidence', 'created_by', 'created_at'),
+            'classes': ('collapse',)
+        }),
+    )
