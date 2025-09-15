@@ -15,6 +15,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 프로젝트 파일 복사
 COPY . .
 
+RUN python manage.py collectstatic --noinput || true
+
 # Django 마이그레이션 및 서버 실행을 위한 스크립트
 COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh

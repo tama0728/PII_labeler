@@ -33,7 +33,7 @@ services:
       - DB_NAME=${DB_NAME:-pii_labeler_db}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-*}
       - TIME_ZONE=${TIME_ZONE:-Asia/Seoul}
       - LANGUAGE_CODE=${LANGUAGE_CODE:-ko-kr}
 

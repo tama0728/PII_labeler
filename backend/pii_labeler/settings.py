@@ -35,7 +35,7 @@ SECRET_KEY = env('SECRET_KEY', default="django-insecure-60a0$&be0j(_(1s(fu8)7g5&
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['114.110.130.188', 'localhost', '127.0.0.1'])
 
 # CSRF 설정 (프론트엔드/백엔드 분리 구조용)
 CSRF_TRUSTED_ORIGINS = [
@@ -43,14 +43,22 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8015',
     'http://127.0.0.1:8000',
     'http://127.0.0.1:8015',
+    'http://114.110.130.188:8015',
+    'http://114.110.130.188:8080',
 ]
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_HTTPONLY = False
 
 # 개발 환경에서 CSRF 비활성화 (프로덕션에서는 제거해야 함)
 if DEBUG:
+    # 개발 환경 기본값
     CSRF_COOKIE_SECURE = False
+    CSRF_COOKIE_HTTPONLY = False
     CSRF_USE_SESSIONS = False
+else:
+    # 프로덕션 기본값 (HTTPS 전제 권장)
+    CSRF_COOKIE_SECURE = True
+    CSRF_COOKIE_HTTPONLY = True
 
 
 # Application definition
@@ -67,6 +75,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -145,7 +154,13 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = "static/"
+# Django가 생성/참조하는 정적 경로는 반드시 슬래시로 시작해야 함
+STATIC_URL = "/static/"
+# collectstatic 출력 경로 (컨테이너 빌드 시 필요)
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+# WhiteNoise 압축/해시 스토리지(프로덕션 권장, 개발에서도 무해)
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
