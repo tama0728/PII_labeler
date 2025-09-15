@@ -267,7 +267,7 @@ def bulk_delete_documents(request):
         try:
             document_ids = request.POST.getlist('document_ids')
             Document.objects.filter(id__in=document_ids).delete()
-            return JsonResponse({'success': True})
+            return JsonResponse({'success': True, 'deleted_count': len(document_ids)})
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)})
     
