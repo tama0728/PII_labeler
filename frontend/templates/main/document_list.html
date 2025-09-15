@@ -43,9 +43,11 @@ th:first-child, td:first-child {
                 <th>
                     <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
                 </th>
+                <th>No</th>
                 <th>문서 ID</th>
                 <th>내용 미리보기</th>
                 <th>PII 태그 수</th>
+                <th>수정일</th>
                 <th>생성일</th>
                 <th>삭제</th>
             </tr>
@@ -57,10 +59,13 @@ th:first-child, td:first-child {
                     <input type="checkbox" class="document-checkbox" value="{{ document.pk }}" onchange="updateBulkButtons()" onclick="event.stopPropagation();">
                 </td>
                 <td>
+                    <strong>{{ forloop.counter }}</strong>
+                </td>
+                <td>
                     <strong>{{ document.data_id }}</strong>
                 </td>
                 <td>
-                    <div class="text-truncate" style="max-width: 300px;" title="{{ document.text }}">
+                    <div class="text-truncate" style="max-width: 200px;" title="{{ document.text }}">
                         {{ document.text|truncatewords:15 }}
                     </div>
                 </td>
@@ -68,6 +73,11 @@ th:first-child, td:first-child {
                     <span class="badge bg-info">
                         <i class="fas fa-tags"></i> {{ document.pii_tags.count }}
                     </span>
+                </td>
+                <td>
+                    <small class="text-muted">
+                        <i class="fas fa-calendar"></i> {{ document.updated_at|date:"Y-m-d H:i" }}
+                    </small>
                 </td>
                 <td>
                     <small class="text-muted">

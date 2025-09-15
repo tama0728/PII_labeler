@@ -4,7 +4,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.views.decorators.csrf import csrf_exempt
 import json
 import os
@@ -15,7 +15,7 @@ def index(request):
     """메인 페이지"""
     try:
         if request.user.is_authenticated:
-            documents = Document.objects.filter(created_by=request.user).order_by('-created_at')
+            documents = Document.objects.filter(created_by=request.user).order_by('created_at')
         else:
             documents = []
         return render(request, 'main/index.html', {'documents': documents})
@@ -26,7 +26,7 @@ def index(request):
 @login_required
 def document_list(request):
     """문서 목록 페이지"""
-    documents = Document.objects.filter(created_by=request.user).order_by('-created_at')
+    documents = Document.objects.filter(created_by=request.user).order_by('created_at')
     return render(request, 'main/document_list.html', {'documents': documents})
 
 
@@ -60,16 +60,46 @@ def document_create(request):
             if jsonl_file.name.endswith('.jsonl'):
                 try:
                     content = jsonl_file.read().decode('utf-8')
-                    lines = content.strip().split('\n')
-                    
+                    lines = [line for line in content.strip().split('\n') if line.strip()]
+
+                    # 1) 파싱하여 업로드 대상 data_id 수집
+                    parsed_rows = []
+                    upload_data_ids = []
                     for line in lines:
-                        if line.strip():
-                            data = json.loads(line)
-                            
-                            # 메타데이터 처리
-                            metadata = data.get('metadata', {})
+                        data = json.loads(line)
+                        metadata = data.get('metadata', {})
+                        data_id_value = metadata.get('data_id', '')
+                        parsed_rows.append((data, metadata, data_id_value))
+                        upload_data_ids.append(data_id_value)
+
+                    # 2) 파일 내부 data_id 중복 검사
+                    duplicate_in_file = {x for x in upload_data_ids if upload_data_ids.count(x) > 1}
+                    if duplicate_in_file:
+                        messages.error(
+                            request,
+                            f"업로드 파일 내 중복 data_id가 발견되어 업로드를 중단했습니다: {', '.join(sorted(duplicate_in_file))}"
+                        )
+                        return render(request, 'main/document_create.html')
+
+                    # 3) DB 중복 검사 (사용자 기준)
+                    existing = set(
+                        Document.objects.filter(
+                            data_id__in=upload_data_ids,
+                            created_by=request.user
+                        ).values_list('data_id', flat=True)
+                    )
+                    if existing:
+                        messages.error(
+                            request,
+                            f"이미 존재하는 data_id가 있어 업로드를 중단했습니다: {', '.join(sorted(existing))}"
+                        )
+                        return render(request, 'main/document_create.html')
+
+                    # 4) 트랜잭션으로 일괄 생성. 중간 오류 시 전체 롤백
+                    with transaction.atomic():
+                        for data, metadata, data_id_value in parsed_rows:
                             document = Document.objects.create(
-                                data_id=metadata.get('data_id', ''),
+                                data_id=data_id_value,
                                 number_of_subjects=metadata.get('number_of_subjects', 0),
                                 dialog_type=metadata.get('provenance', {}).get('dialog_type', ''),
                                 turn_cnt=metadata.get('provenance', {}).get('turn_cnt', 0),
@@ -77,14 +107,14 @@ def document_create(request):
                                 text=data.get('text', ''),
                                 created_by=request.user
                             )
-                            
+
                             # 엔티티 처리
                             entities = data.get('entities', [])
                             for entity in entities:
                                 pii_category = PIICategory.objects.filter(
                                     value=entity.get('entity_type', '')
                                 ).first()
-                                
+
                                 if pii_category:
                                     span_id = entity.get('span_id', '')
                                     entity_id = entity.get('entity_id', '')
@@ -98,7 +128,7 @@ def document_create(request):
                                         annotator = 'Anonymous'
                                     if not identifier_type:
                                         identifier_type = 'default'
-                                    
+
                                     PIITag.objects.create(
                                         document=document,
                                         pii_category=pii_category,
@@ -111,8 +141,7 @@ def document_create(request):
                                         identifier_type=identifier_type,
                                         created_by=request.user
                                     )
-                                
-                    
+
                     messages.success(request, 'JSONL 파일이 성공적으로 업로드되었습니다.')
                     return redirect('document_list')
                     

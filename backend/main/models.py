@@ -34,6 +34,9 @@ class Document(models.Model):
         verbose_name = "문서"
         verbose_name_plural = "문서들"
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=["created_by", "data_id"], name="uniq_user_data_id")
+        ]
     
     def __str__(self):
         return self.data_id
