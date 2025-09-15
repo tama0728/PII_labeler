@@ -14,27 +14,32 @@ from .models import Document, PIICategory, PIITag
 def index(request):
     """메인 페이지"""
     try:
-        documents = Document.objects.all().order_by('-created_at')
+        if request.user.is_authenticated:
+            documents = Document.objects.filter(created_by=request.user).order_by('-created_at')
+        else:
+            documents = []
         return render(request, 'main/index.html', {'documents': documents})
     except Exception as e:
         return render(request, 'main/index.html', {'documents': [], 'error': str(e)})
 
 
+@login_required
 def document_list(request):
     """문서 목록 페이지"""
-    documents = Document.objects.all().order_by('-created_at')
+    documents = Document.objects.filter(created_by=request.user).order_by('-created_at')
     return render(request, 'main/document_list.html', {'documents': documents})
 
 
+@login_required
 def document_detail(request, pk):
     """문서 상세 페이지"""
-    document = get_object_or_404(Document, pk=pk)
+    document = get_object_or_404(Document, pk=pk, created_by=request.user)
     pii_tags = PIITag.objects.filter(document=document).order_by('start_offset')
     pii_categories = PIICategory.objects.all()
     
-    # 이전/다음 문서 찾기
-    prev_document = Document.objects.filter(pk__lt=pk).order_by('-pk').first()
-    next_document = Document.objects.filter(pk__gt=pk).order_by('pk').first()
+    # 이전/다음 문서 찾기 (현재 사용자의 문서만)
+    prev_document = Document.objects.filter(pk__lt=pk, created_by=request.user).order_by('-pk').first()
+    next_document = Document.objects.filter(pk__gt=pk, created_by=request.user).order_by('pk').first()
     
     return render(request, 'main/document_detail.html', {
         'document': document,
@@ -45,13 +50,14 @@ def document_detail(request, pk):
     })
 
 
+@login_required
 def document_create(request):
     """문서 생성 페이지"""
     if request.method == 'POST':
-        if 'jsonl_file' in request.files:
+        if 'jsonl_file' in request.FILES:
             # JSONL 파일 처리
-            jsonl_file = request.files['jsonl_file']
-            if jsonl_file.filename.endswith('.jsonl'):
+            jsonl_file = request.FILES['jsonl_file']
+            if jsonl_file.name.endswith('.jsonl'):
                 try:
                     content = jsonl_file.read().decode('utf-8')
                     lines = content.strip().split('\n')
@@ -68,7 +74,8 @@ def document_create(request):
                                 dialog_type=metadata.get('provenance', {}).get('dialog_type', ''),
                                 turn_cnt=metadata.get('provenance', {}).get('turn_cnt', 0),
                                 doc_id=metadata.get('provenance', {}).get('doc_id', ''),
-                                text=data.get('text', '')
+                                text=data.get('text', ''),
+                                created_by=request.user
                             )
                             
                             # 엔티티 처리
@@ -88,7 +95,8 @@ def document_create(request):
                                         span_id=entity.get('span_id', ''),
                                         entity_id=entity.get('entity_id', ''),
                                         annotator=entity.get('annotator', 'Anonymous'),
-                                        identifier_type=entity.get('identifier_type', 'default')
+                                        identifier_type=entity.get('identifier_type', 'default'),
+                                        created_by=request.user
                                     )
                     
                     messages.success(request, 'JSONL 파일이 성공적으로 업로드되었습니다.')
@@ -163,7 +171,8 @@ def add_pii_tag(request):
                 span_id=span_id,
                 entity_id=entity_id,
                 annotator=annotator or 'Anonymous',
-                identifier_type=identifier_type or 'default'
+                identifier_type=identifier_type or 'default',
+                created_by=request.user
             )
             
             return JsonResponse({'success': True})
