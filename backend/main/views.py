@@ -221,7 +221,7 @@ def update_pii_tag(request):
             tag.annotator = request.user.username
             tag.save()
             
-            return JsonResponse({'success': True})
+            return JsonResponse({'success': True, 'new_color': pii_category.background_color, 'new_category': tag.pii_category.value})
             
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)})

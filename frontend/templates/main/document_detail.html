@@ -1090,6 +1090,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const tagElement = document.querySelector(`[data-tag-id="${tagId}"]`);
         if (tagElement) {
             const tagData = JSON.parse(tagElement.dataset.tagData);
+            console.log("tagdata: ", tagData);
             
             // 상세 정보 패널 업데이트
             document.getElementById('selectedText').value = tagData.text;
@@ -1164,6 +1165,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 기존 태그 타입 업데이트 함수
     function updateExistingTagType(tagElement, newType) {
         const tagId = tagElement.dataset.tagId;
+        const tagData = JSON.parse(tagElement.dataset.tagData);
         const identifierType = tagData.identifier_type || 'default';
         
         const formData = new FormData();
@@ -1171,7 +1173,7 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('pii_category_value', newType);
         formData.append('identifier_type', identifierType);
         formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-        
+
         fetch('{% url "update_pii_tag" %}', {
             method: 'POST',
             body: formData,
@@ -1182,6 +1184,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                console.log("data: ", data);
                 // 태그 요소 업데이트
                 tagElement.style.backgroundColor = data.new_color;
                 tagElement.title = `${data.new_category}: ${tagElement.textContent}`;
@@ -1191,7 +1194,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('annotator').value = "{{ user.username }}";  // 어노테이터 업데이트
                 
                 // JSON 정보 업데이트
-                const tagData = JSON.parse(tagElement.dataset.tagData);
+                
                 const jsonData = {
                     span_text: tagData.text,
                     entity_type: data.new_category,
