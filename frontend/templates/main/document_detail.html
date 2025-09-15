@@ -1096,11 +1096,8 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('selectedText').value = tagData.text;
             document.getElementById('entityType').value = tagData.category;
             document.getElementById('annotator').value = tagData.annotator || 'Anonymous';
+            document.getElementById('identifierType').value = tagData.identifier_type || 'default';
             
-            
-            // 식별자 유형 설정
-            const identifierTypeSelect = document.getElementById('identifierType');
-            identifierTypeSelect.value = tagData.identifier_type || 'default';
             
             // 연결 드롭박스 업데이트
             updateLinkedAnnotationDropdown(tagId);
