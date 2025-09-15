@@ -86,18 +86,25 @@ def document_create(request):
                                 ).first()
                                 
                                 if pii_category:
+                                    span_id = entity.get('span_id', '')
+                                    entity_id = entity.get('entity_id', '')
+                                    if not span_id:
+                                        span_id = PIITag.objects.filter(document=document).count()+1
+                                    if not entity_id:
+                                        entity_id = PIITag.objects.filter(document=document).count()+1
                                     PIITag.objects.create(
                                         document=document,
                                         pii_category=pii_category,
                                         span_text=entity.get('span_text', ''),
                                         start_offset=entity.get('start_offset', 0),
                                         end_offset=entity.get('end_offset', 0),
-                                        span_id=entity.get('span_id', ''),
-                                        entity_id=entity.get('entity_id', ''),
+                                        span_id=span_id,
+                                        entity_id=entity_id,
                                         annotator=entity.get('annotator', 'Anonymous'),
                                         identifier_type=entity.get('identifier_type', 'default'),
                                         created_by=request.user
                                     )
+                                
                     
                     messages.success(request, 'JSONL 파일이 성공적으로 업로드되었습니다.')
                     return redirect('document_list')
