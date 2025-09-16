@@ -143,7 +143,7 @@
 }
 
 .existing-pii-tag {
-    display: inline;
+    display: inline-block;
     padding: 2px 6px;
     margin: 0 1px;
     border-radius: 4px;
@@ -155,6 +155,8 @@
     z-index: 10;
     box-shadow: 0 1px 3px rgba(0,0,0,0.15);
     border: 1px solid rgba(255,255,255,0.4);
+    vertical-align: top;
+    white-space: nowrap;
 }
 
 .existing-pii-tag:hover {
@@ -280,6 +282,9 @@
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
+    z-index: 1002;
+    white-space: nowrap;
+    transform: translateZ(0);
 }
 
 .existing-pii-tag:hover .delete-btn {
@@ -747,6 +752,9 @@ function saveTagUpdate(tagId, piiCategoryValue, identifierType, entityId) {
                     const identifierSelect = document.getElementById('identifierType');
                     if (identifierSelect) identifierSelect.value = localData.identifier_type || 'default';
                 }
+                
+                // 링크 스타일 재적용
+                applyLinkedTagStyles();
             }
         } else {
             console.error('태그 업데이트 실패:', data.message);
@@ -859,6 +867,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // 연결된 태그들에 스타일 적용
     function applyLinkedTagStyles() {
         const allTags = document.querySelectorAll('.existing-pii-tag');
+        
+        // 먼저 모든 태그에서 linked 클래스 제거
+        allTags.forEach(tag => {
+            tag.classList.remove('linked');
+        });
+        
         const entityGroups = {};
         
         // entity_id별로 태그들을 그룹화
@@ -884,13 +898,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 const tag = group[0];
                 const tagData = JSON.parse(tag.dataset.tagData);
                 
-                // span_id와 entity_id가 같으면 독립 태그 (linked 클래스 제거)
-                if (String(tagData.span_id) === String(tagData.entity_id)) {
-                    tag.classList.remove('linked');
-                } else {
-                    // span_id와 entity_id가 다르면 연결된 태그 (linked 클래스 추가)
+                // span_id와 entity_id가 다르면 연결된 태그 (linked 클래스 추가)
+                if (String(tagData.span_id) !== String(tagData.entity_id)) {
                     tag.classList.add('linked');
                 }
+                // span_id와 entity_id가 같으면 독립 태그 (linked 클래스는 이미 제거됨)
             }
         });
     }
@@ -899,20 +911,23 @@ document.addEventListener('DOMContentLoaded', function() {
     function highlightLinkedTags(entityId) {
         const allTags = document.querySelectorAll('.existing-pii-tag');
         
+        // 먼저 모든 태그에서 linked 클래스 제거
+        allTags.forEach(tag => {
+            tag.classList.remove('linked');
+        });
+        
         allTags.forEach(tag => {
             const tagData = JSON.parse(tag.dataset.tagData);
             
             if (String(tagData.entity_id) === String(entityId)) {
                 // 같은 entity_id를 가진 태그들 처리
                 
-                // span_id와 entity_id가 같으면 독립 태그
-                if (String(tagData.span_id) === String(tagData.entity_id)) {
-                    // 독립 태그는 linked 클래스 제거
-                    tag.classList.remove('linked');
-                } else {
+                // span_id와 entity_id가 다르면 연결된 태그
+                if (String(tagData.span_id) !== String(tagData.entity_id)) {
                     // 연결된 태그는 linked 클래스 추가
                     tag.classList.add('linked');
                 }
+                // span_id와 entity_id가 같으면 독립 태그 (linked 클래스는 이미 제거됨)
                 
                 // 선택된 태그가 아닌 경우 약간의 투명도 적용
                 if (!tag.classList.contains('selected')) {
@@ -1194,6 +1209,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // 텍스트 선택 해제
         window.getSelection().removeAllRanges();
         
+        // 링크 스타일 재적용으로 화면 업데이트
+        if (typeof applyLinkedTagStyles === 'function') {
+            applyLinkedTagStyles();
+        }
+        
         // 선택된 텍스트 정보 초기화
         selectedText = '';
         selectionStart = 0;
@@ -1347,6 +1367,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // 연결된 태그들도 함께 하이라이트
             highlightLinkedTags(tagData.entity_id);
+            applyLinkedTagStyles();
+
             
             // 현재 태그 타입에 해당하는 버튼 선택
             const correspondingButton = document.querySelector(`[data-tag-type="${tagData.category}"]`);
@@ -1410,6 +1432,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 tagData.category = data.new_category;
                 tagData.annotator = "{{ user.username }}";  // 로컬 데이터도 업데이트
                 tagElement.dataset.tagData = JSON.stringify(tagData);
+                
+                // 링크 스타일 재적용
+                applyLinkedTagStyles();
                 
                 console.log('태그 타입이 변경되었습니다:', data.new_category);
             } else {
