@@ -773,14 +773,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 텍스트가 선택된 상태에서 라벨 선택
                 const newTagType = this.dataset.tagType;
                 
+                // 바로 태그 추가
+                addPiiTag(newTagType, selectedText, selectionStart, selectionEnd);
+                // 선택 정보 표시
+                //showSelectionInfo(selectedText, selectionStart, selectionEnd);
+
                 // 모든 버튼에서 selected 클래스 제거
                 tagButtons.forEach(btn => btn.classList.remove('selected'));
                 // 클릭된 버튼에 selected 클래스 추가
                 this.classList.add('selected');
                 selectedTagType = newTagType;
-                
-                // 선택 정보 표시
-                showSelectionInfo(selectedText, selectionStart, selectionEnd);
             } else {
                 // 아무것도 선택되지 않은 상태에서는 선택 불가
                 // 조용히 무시 (알림 메시지 제거)
