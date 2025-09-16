@@ -143,25 +143,124 @@
 }
 
 .existing-pii-tag {
-    display: inline-block;
+    display: inline;
     padding: 2px 6px;
-    margin: 1px;
+    margin: 0 1px;
     border-radius: 4px;
     color: white;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
     position: relative;
+    z-index: 10;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    border: 1px solid rgba(255,255,255,0.4);
 }
 
 .existing-pii-tag:hover {
-    transform: scale(1.05);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    z-index: 1000 !important;
+    border: 2px solid rgba(255,255,255,0.9);
+    opacity: 0.7;
 }
 
 .existing-pii-tag.selected {
-    border: 2px solid #007bff;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.3);
+    border: 3px solid #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.3), 0 4px 12px rgba(0,0,0,0.2);
+    z-index: 200 !important;
+    transform: scale(1.1) translateY(-3px);
+    animation: selected-glow 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes selected-glow {
+    from { box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.3), 0 4px 12px rgba(0,0,0,0.2); }
+    to { box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.6), 0 6px 16px rgba(0,0,0,0.3); }
+}
+
+/* 연결되지 않은 태그들 (독립 태그) */
+.existing-pii-tag:not(.linked) {
+    border-left: 4px solid #6c757d;
+    position: relative;
+    box-shadow: 0 1px 3px rgba(108, 117, 125, 0.2);
+    opacity: 1;
+}
+
+.existing-pii-tag:not(.linked)::before {
+    content: '●';
+    position: absolute;
+    top: -8px;
+    left: -2px;
+    font-size: 8px;
+    background: #6c757d;
+    color: white;
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1001;
+}
+
+/* 연결된 태그들 그룹 표시 */
+.existing-pii-tag.linked {
+    border-left: 4px solid #28a745;
+    position: relative;
+    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+    opacity: 1;
+}
+
+.existing-pii-tag.linked::before {
+    content: '🔗';
+    position: absolute;
+    top: -8px;
+    left: -2px;
+    font-size: 10px;
+    background: #28a745;
+    color: white;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1001;
+}
+
+/* 독립 태그 호버 효과 */
+.existing-pii-tag:not(.linked):hover {
+    border-left-color: #495057;
+    box-shadow: 0 2px 6px rgba(108, 117, 125, 0.3);
+    opacity: 0.7;
+}
+
+/* 연결된 태그 그룹 호버 효과 */
+.existing-pii-tag.linked:hover {
+    border-left-color: #20c997;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+    opacity: 0.7;
+}
+
+/* 독립 태그 선택 시 */
+.existing-pii-tag:not(.linked).selected {
+    border-left-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.3), 0 2px 6px rgba(108, 117, 125, 0.3);
+    opacity: 0.4;
+}
+
+.existing-pii-tag:not(.linked).selected::before {
+    background: #007bff;
+}
+
+/* 연결된 태그 그룹 선택 시 */
+.existing-pii-tag.linked.selected {
+    border-left-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.3), 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+.existing-pii-tag.linked.selected::before {
+    background: #007bff;
 }
 
 .existing-pii-tag .delete-btn {
@@ -749,6 +848,94 @@ document.addEventListener('DOMContentLoaded', function() {
         // 줄바꿈 처리
         htmlContent = htmlContent.replace(/\n/g, '<br>');
         documentText.innerHTML = htmlContent;
+        
+        // 연결된 태그들에 CSS 클래스 적용
+        setTimeout(() => {
+            applyLinkedTagStyles();
+        }, 100);
+    }
+    
+    // 연결된 태그들에 스타일 적용
+    function applyLinkedTagStyles() {
+        const allTags = document.querySelectorAll('.existing-pii-tag');
+        const entityGroups = {};
+        
+        // entity_id별로 태그들을 그룹화
+        allTags.forEach(tag => {
+            const tagData = JSON.parse(tag.dataset.tagData);
+            const entityId = tagData.entity_id;
+            
+            if (!entityGroups[entityId]) {
+                entityGroups[entityId] = [];
+            }
+            entityGroups[entityId].push(tag);
+        });
+        
+        // 연결된 태그들에 스타일 적용
+        Object.values(entityGroups).forEach(group => {
+            if (group.length > 1) {
+                // 같은 entity_id를 가진 태그가 2개 이상인 경우 (연결된 태그)
+                group.forEach(tag => {
+                    tag.classList.add('linked');
+                });
+            } else if (group.length === 1) {
+                // 혼자만 있는 그룹인 경우, 독립 태그인지 확인
+                const tag = group[0];
+                const tagData = JSON.parse(tag.dataset.tagData);
+                
+                // span_id와 entity_id가 같으면 독립 태그 (linked 클래스 제거)
+                if (String(tagData.span_id) === String(tagData.entity_id)) {
+                    tag.classList.remove('linked');
+                } else {
+                    // span_id와 entity_id가 다르면 연결된 태그 (linked 클래스 추가)
+                    tag.classList.add('linked');
+                }
+            }
+        });
+    }
+    
+    // 연결된 태그들 하이라이트
+    function highlightLinkedTags(entityId) {
+        const allTags = document.querySelectorAll('.existing-pii-tag');
+        
+        allTags.forEach(tag => {
+            const tagData = JSON.parse(tag.dataset.tagData);
+            
+            if (String(tagData.entity_id) === String(entityId)) {
+                // 같은 entity_id를 가진 태그들 처리
+                
+                // span_id와 entity_id가 같으면 독립 태그
+                if (String(tagData.span_id) === String(tagData.entity_id)) {
+                    // 독립 태그는 linked 클래스 제거
+                    tag.classList.remove('linked');
+                } else {
+                    // 연결된 태그는 linked 클래스 추가
+                    tag.classList.add('linked');
+                }
+                
+                // 선택된 태그가 아닌 경우 약간의 투명도 적용
+                if (!tag.classList.contains('selected')) {
+                    tag.style.opacity = '0.9';
+                    tag.style.transform = 'scale(1.02)';
+                }
+            } else {
+                // 다른 그룹의 태그들은 더 투명하게 표시
+                tag.style.opacity = '0.4';
+                tag.style.transform = 'scale(0.85)';
+                tag.style.filter = 'grayscale(0.5)';
+            }
+        });
+    }
+    
+    // 태그 선택 해제 시 모든 태그 원래 상태로 복원
+    function clearTagHighlights() {
+        const allTags = document.querySelectorAll('.existing-pii-tag');
+        
+        allTags.forEach(tag => {
+            tag.style.opacity = '';
+            tag.style.transform = '';
+            tag.style.filter = '';
+        });
     }
     
     // 페이지 로드 시 기존 태그들 렌더링
@@ -792,6 +979,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 텍스트 선택 시작
     documentText.addEventListener('mousedown', function(e) {
+        clearTagHighlights();
+        clearSelection();
         isSelecting = true;
         documentText.style.userSelect = 'text';
 
@@ -983,6 +1172,7 @@ document.addEventListener('DOMContentLoaded', function() {
     cancelTagBtn.addEventListener('click', function() {
         hideSelectionInfo();
         clearSelection();
+        clearTagHighlights();
     });
     
     // 선택 초기화
@@ -1153,6 +1343,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // 선택된 태그에 선택 상태 추가
             tagElement.classList.add('selected');
+            
+            // 연결된 태그들도 함께 하이라이트
+            highlightLinkedTags(tagData.entity_id);
             
             // 현재 태그 타입에 해당하는 버튼 선택
             const correspondingButton = document.querySelector(`[data-tag-type="${tagData.category}"]`);
