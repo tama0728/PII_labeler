@@ -129,12 +129,31 @@ def document_create(request):
                                     if not identifier_type:
                                         identifier_type = 'default'
 
+                                    # 공백 트림 처리
+                                    original_span_text = entity.get('span_text', '')
+                                    trimmed_span_text = original_span_text.strip()
+                                    start_offset = entity.get('start_offset', 0)
+                                    end_offset = entity.get('end_offset', 0)
+                                    
+                                    # 트림된 텍스트가 원본과 다르면 offset 조정
+                                    if trimmed_span_text != original_span_text:
+                                        left_trim_count = len(original_span_text) - len(original_span_text.lstrip())
+                                        right_trim_count = len(original_span_text) - len(original_span_text.rstrip())
+                                        
+                                        # offset 조정
+                                        start_offset = start_offset + left_trim_count
+                                        end_offset = end_offset - right_trim_count
+                                        
+                                        # end_offset이 start_offset보다 작아지지 않도록 보정
+                                        if end_offset <= start_offset:
+                                            end_offset = start_offset + len(trimmed_span_text)
+                                    
                                     PIITag.objects.create(
                                         document=document,
                                         pii_category=pii_category,
-                                        span_text=entity.get('span_text', ''),
-                                        start_offset=entity.get('start_offset', 0),
-                                        end_offset=entity.get('end_offset', 0),
+                                        span_text=trimmed_span_text,
+                                        start_offset=start_offset,
+                                        end_offset=end_offset,
                                         span_id=span_id,
                                         entity_id=entity_id,
                                         annotator=annotator,
@@ -189,7 +208,29 @@ def add_pii_tag(request):
             document = get_object_or_404(Document, id=document_id)
             pii_category = get_object_or_404(PIICategory, value=pii_category_value)
             
-            # 중복 태그 확인
+            # 공백 트림 처리
+            original_span_text = span_text
+            trimmed_span_text = span_text.strip()
+            
+            # 트림된 텍스트가 원본과 다르면 offset 조정
+            if trimmed_span_text != original_span_text:
+                left_trim_count = len(original_span_text) - len(original_span_text.lstrip())
+                right_trim_count = len(original_span_text) - len(original_span_text.rstrip())
+                
+                # offset 조정
+                adjusted_start_offset = start_offset + left_trim_count
+                adjusted_end_offset = end_offset - right_trim_count
+                
+                # end_offset이 start_offset보다 작아지지 않도록 보정
+                if adjusted_end_offset <= adjusted_start_offset:
+                    adjusted_end_offset = adjusted_start_offset + len(trimmed_span_text)
+                
+                # 트림된 텍스트와 조정된 offset 사용
+                span_text = trimmed_span_text
+                start_offset = adjusted_start_offset
+                end_offset = adjusted_end_offset
+            
+            # 중복 태그 확인 (조정된 offset으로)
             existing_tag = PIITag.objects.filter(
                 document=document,
                 start_offset=start_offset,

@@ -888,9 +888,14 @@ document.addEventListener('DOMContentLoaded', function() {
         
         setTimeout(() => {
             const selection = window.getSelection();
-            const text = selection.toString().trim();
+            const originalText = selection.toString();
             
-            if (text && text.length > 0) {
+            if (originalText && originalText.length > 0) {
+                // 공백 트림 처리
+                const trimmedText = originalText.trim();
+                const leftTrimCount = originalText.length - originalText.trimStart().length;
+                const rightTrimCount = originalText.length - originalText.trimEnd().length;
+                
                 // 모든 태그 버튼에서 selected 클래스 제거
                 tagButtons.forEach(btn => btn.classList.remove('selected'));
                 selectedTagType = null;
@@ -899,7 +904,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.querySelectorAll('.existing-pii-tag').forEach(tag => {
                     tag.classList.remove('selected');
                 });
-                selectedText = text;
+                selectedText = trimmedText;
                 
                 // DOM Range를 기반으로 정확한 오프셋 계산 (중복 문자열 대응)
                 let startOffset = -1;
@@ -907,16 +912,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (selection.rangeCount > 0) {
                     const range = selection.getRangeAt(0);
                     const offsets = computeOffsetsFromSelection(documentText, range);
-                    startOffset = offsets.start;
-                    endOffset = offsets.end;
+                    startOffset = offsets.start + leftTrimCount;  // 왼쪽 공백만큼 오프셋 조정
+                    endOffset = offsets.end - rightTrimCount;    // 오른쪽 공백만큼 오프셋 조정
                 }
 
                 if (startOffset !== -1 && endOffset !== -1) {
                     selectionStart = startOffset;
                     selectionEnd = endOffset;
 
-                    // 선택된 텍스트 표시
-                    showSelectedTextInfo(text, startOffset, endOffset);
+                    // 선택된 텍스트 표시 (트림된 텍스트 사용)
+                    showSelectedTextInfo(trimmedText, startOffset, endOffset);
                 } else {
                     alert('선택된 텍스트를 원본 문서에서 찾을 수 없습니다.');
                 }
