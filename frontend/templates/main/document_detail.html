@@ -285,6 +285,10 @@
     z-index: 1002;
     white-space: nowrap;
     transform: translateZ(0);
+    user-select: none; /* 텍스트 선택에서 제외 */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .existing-pii-tag:hover .delete-btn {
@@ -1097,9 +1101,13 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (originalText && originalText.length > 0) {
                 // 공백 트림 처리
-                const trimmedText = originalText.trim();
-                const leftTrimCount = originalText.length - originalText.trimStart().length;
-                const rightTrimCount = originalText.length - originalText.trimEnd().length;
+                const processedText = originalText.replace(/×/g, '');
+                const trimmedText = processedText.trim();
+
+                // × 삭제 버튼 문자 제외
+                //trimmedText = originalText.replace(/×/g, '').trim();
+                const leftTrimCount = processedText.length - processedText.trimStart().length;
+                const rightTrimCount = processedText.length - processedText.trimEnd().length;
                 
                 // 모든 태그 버튼에서 selected 클래스 제거
                 tagButtons.forEach(btn => btn.classList.remove('selected'));
@@ -1225,8 +1233,37 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('jsonDisplay').value = '';
     }
     
+    // 태그 겹침 검사 함수
+    function checkTagOverlap(start, end) {
+        const allTags = document.querySelectorAll('.existing-pii-tag');
+        
+        for (let tag of allTags) {
+            const tagData = JSON.parse(tag.dataset.tagData);
+            const tagStart = tagData.start;
+            const tagEnd = tagData.end;
+            
+            // 겹침 검사: 새로운 태그가 기존 태그와 겹치는지 확인
+            if (!(end <= tagStart || start >= tagEnd)) {
+                return {
+                    hasOverlap: true,
+                    overlappingTag: tagData,
+                    overlapText: tagData.text
+                };
+            }
+        }
+        
+        return { hasOverlap: false };
+    }
+
     // PII 태그 추가 함수
     function addPiiTag(tagType, text, start, end) {
+        // 겹침 검사
+        const overlapCheck = checkTagOverlap(start, end);
+        if (overlapCheck.hasOverlap) {
+            alert(`태그 추가 실패: 선택한 영역이 기존 태그 "${overlapCheck.overlapText}"와 겹칩니다.\n\n겹치지 않는 영역을 선택해주세요.`);
+            return;
+        }
+        
         const formData = new FormData();
         formData.append('document_id', {{ document.id }});
         formData.append('pii_category_value', tagType);
