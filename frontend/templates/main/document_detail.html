@@ -703,11 +703,12 @@ function updateEntityIdAndSave() {
             }
         });
     }
+    applyLinkedTagStyles();
+    highlightLinkedTags(newEntityId);
 }
 
 function updateIdentifierTypeAndSave() {
     const currentTagElement = document.querySelector('.existing-pii-tag.selected');
-    
     if (!currentTagElement) {
         console.log('선택된 태그가 없습니다.');
         return;
@@ -715,9 +716,11 @@ function updateIdentifierTypeAndSave() {
     
     const currentTagData = JSON.parse(currentTagElement.dataset.tagData);
     const identifierType = document.getElementById('identifierType').value || 'default';
-    
+    currentTagElement.dataset.tagData = JSON.stringify({...currentTagData, identifier_type: identifierType});
     // 서버에 저장
     saveTagUpdate(currentTagData.id, currentTagData.category, identifierType, currentTagData.entity_id);
+    // 화면 업데이트
+    updateJsonDisplay();
 }
 
 function saveTagUpdate(tagId, piiCategoryValue, identifierType, entityId) {
@@ -756,9 +759,6 @@ function saveTagUpdate(tagId, piiCategoryValue, identifierType, entityId) {
                     const identifierSelect = document.getElementById('identifierType');
                     if (identifierSelect) identifierSelect.value = localData.identifier_type || 'default';
                 }
-                
-                // 링크 스타일 재적용
-                applyLinkedTagStyles();
             }
         } else {
             console.error('태그 업데이트 실패:', data.message);
@@ -810,6 +810,94 @@ function updateJsonDisplay() {
         
         document.getElementById('jsonDisplay').value = JSON.stringify(jsonData, null, 2);
     }
+
+    // 화면 업데이트
+    applyLinkedTagStyles();
+}
+
+// 연결된 태그들에 스타일 적용
+function applyLinkedTagStyles() {
+    const allTags = document.querySelectorAll('.existing-pii-tag');
+    
+    // 먼저 모든 태그에서 linked 클래스 제거
+    allTags.forEach(tag => {
+        tag.classList.remove('linked');
+    });
+    
+    const entityGroups = {};
+    
+    // entity_id별로 태그들을 그룹화
+    allTags.forEach(tag => {
+        const tagData = JSON.parse(tag.dataset.tagData);
+        const entityId = tagData.entity_id;
+        
+        if (!entityGroups[entityId]) {
+            entityGroups[entityId] = [];
+        }
+        entityGroups[entityId].push(tag);
+    });
+    
+    // 연결된 태그들에 스타일 적용
+    Object.values(entityGroups).forEach(group => {
+        if (group.length > 1) {
+            // 같은 entity_id를 가진 태그가 2개 이상인 경우 (연결된 태그)
+            group.forEach(tag => {
+                tag.classList.add('linked');
+            });
+        } else if (group.length === 1) {
+            // 혼자만 있는 그룹인 경우, 독립 태그인지 확인
+            const tag = group[0];
+            const tagData = JSON.parse(tag.dataset.tagData);
+            
+            // span_id와 entity_id가 다르면 연결된 태그 (linked 클래스 추가)
+            if (String(tagData.span_id) !== String(tagData.entity_id)) {
+                tag.classList.add('linked');
+            }
+            // span_id와 entity_id가 같으면 독립 태그 (linked 클래스는 이미 제거됨)
+        }
+    });
+}
+
+// 연결된 태그들 하이라이트
+function highlightLinkedTags(entityId) {
+    const allTags = document.querySelectorAll('.existing-pii-tag');
+    
+    // 먼저 모든 태그의 스타일 초기화
+    allTags.forEach(tag => {
+        tag.classList.remove('linked');
+        tag.style.opacity = '';
+        tag.style.transform = '';
+        tag.style.filter = '';
+    });
+    
+    allTags.forEach(tag => {
+        const tagData = JSON.parse(tag.dataset.tagData);
+        
+        if (String(tagData.entity_id) === String(entityId)) {
+            // 같은 entity_id를 가진 태그들 처리
+            
+            // span_id와 entity_id가 다르면 연결된 태그
+            if (String(tagData.span_id) !== String(tagData.entity_id)) {
+                // 연결된 태그는 linked 클래스 추가
+                tag.classList.add('linked');
+            }
+            // span_id와 entity_id가 같으면 독립 태그 (linked 클래스는 이미 제거됨)
+            
+            // 선택된 태그가 아닌 경우 약간의 투명도 적용
+            if (!tag.classList.contains('selected')) {
+                tag.style.opacity = '0.9';
+                tag.style.transform = 'scale(1.02)';
+            }
+        } else {
+            // 다른 그룹의 태그들은 더 투명하게 표시
+            tag.style.opacity = '0.4';
+            tag.style.transform = 'scale(0.85)';
+            tag.style.filter = 'grayscale(0.5)';
+        }
+    });
+    
+    // 연결된 태그 스타일도 적용
+    applyLinkedTagStyles();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -832,22 +920,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let htmlContent = originalText;
         
         // PII 태그들을 시작 위치 기준으로 정렬
-        const sortedTags = [
-            {% for tag in pii_tags %}
-            {
-                id: {{ tag.id }},
-                start: {{ tag.start_offset }},
-                end: {{ tag.end_offset }},
-                text: "{{ tag.span_text|escapejs }}",
-                color: "{{ tag.pii_category.background_color }}",
-                category: "{{ tag.pii_category.value }}",
-                span_id: "{{ tag.span_id|escapejs }}",
-                entity_id: "{{ tag.entity_id|escapejs }}",
-                annotator: "{{ tag.annotator|escapejs }}",
-                identifier_type: "{{ tag.identifier_type|escapejs }}"
-            }{% if not forloop.last %},{% endif %}
-            {% endfor %}
-        ].sort((a, b) => a.start - b.start);
+        const sortedTags = {{ pii_tags_json|safe }}.sort((a, b) => a.start - b.start);
         
         // 뒤에서부터 태그를 삽입 (인덱스 변화 방지)
         for (let i = sortedTags.length - 1; i >= 0; i--) {
@@ -866,85 +939,6 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             applyLinkedTagStyles();
         }, 100);
-    }
-    
-    // 연결된 태그들에 스타일 적용
-    function applyLinkedTagStyles() {
-        const allTags = document.querySelectorAll('.existing-pii-tag');
-        
-        // 먼저 모든 태그에서 linked 클래스 제거
-        allTags.forEach(tag => {
-            tag.classList.remove('linked');
-        });
-        
-        const entityGroups = {};
-        
-        // entity_id별로 태그들을 그룹화
-        allTags.forEach(tag => {
-            const tagData = JSON.parse(tag.dataset.tagData);
-            const entityId = tagData.entity_id;
-            
-            if (!entityGroups[entityId]) {
-                entityGroups[entityId] = [];
-            }
-            entityGroups[entityId].push(tag);
-        });
-        
-        // 연결된 태그들에 스타일 적용
-        Object.values(entityGroups).forEach(group => {
-            if (group.length > 1) {
-                // 같은 entity_id를 가진 태그가 2개 이상인 경우 (연결된 태그)
-                group.forEach(tag => {
-                    tag.classList.add('linked');
-                });
-            } else if (group.length === 1) {
-                // 혼자만 있는 그룹인 경우, 독립 태그인지 확인
-                const tag = group[0];
-                const tagData = JSON.parse(tag.dataset.tagData);
-                
-                // span_id와 entity_id가 다르면 연결된 태그 (linked 클래스 추가)
-                if (String(tagData.span_id) !== String(tagData.entity_id)) {
-                    tag.classList.add('linked');
-                }
-                // span_id와 entity_id가 같으면 독립 태그 (linked 클래스는 이미 제거됨)
-            }
-        });
-    }
-    
-    // 연결된 태그들 하이라이트
-    function highlightLinkedTags(entityId) {
-        const allTags = document.querySelectorAll('.existing-pii-tag');
-        
-        // 먼저 모든 태그에서 linked 클래스 제거
-        allTags.forEach(tag => {
-            tag.classList.remove('linked');
-        });
-        
-        allTags.forEach(tag => {
-            const tagData = JSON.parse(tag.dataset.tagData);
-            
-            if (String(tagData.entity_id) === String(entityId)) {
-                // 같은 entity_id를 가진 태그들 처리
-                
-                // span_id와 entity_id가 다르면 연결된 태그
-                if (String(tagData.span_id) !== String(tagData.entity_id)) {
-                    // 연결된 태그는 linked 클래스 추가
-                    tag.classList.add('linked');
-                }
-                // span_id와 entity_id가 같으면 독립 태그 (linked 클래스는 이미 제거됨)
-                
-                // 선택된 태그가 아닌 경우 약간의 투명도 적용
-                if (!tag.classList.contains('selected')) {
-                    tag.style.opacity = '0.9';
-                    tag.style.transform = 'scale(1.02)';
-                }
-            } else {
-                // 다른 그룹의 태그들은 더 투명하게 표시
-                tag.style.opacity = '0.4';
-                tag.style.transform = 'scale(0.85)';
-                tag.style.filter = 'grayscale(0.5)';
-            }
-        });
     }
     
     // 태그 선택 해제 시 모든 태그 원래 상태로 복원
@@ -1343,80 +1337,71 @@ document.addEventListener('DOMContentLoaded', function() {
     // 기존 태그 선택 함수
     window.selectExistingTag = function(tagId) {
         const tagElement = document.querySelector(`[data-tag-id="${tagId}"]`);
-        if (tagElement) {
-            const tagData = JSON.parse(tagElement.dataset.tagData);
-            console.log("tagdata: ", tagData);
-            
-            // 상세 정보 패널 업데이트
-            document.getElementById('selectedText').value = tagData.text;
-            document.getElementById('entityType').value = tagData.category;
-            document.getElementById('annotator').value = tagData.annotator || 'Anonymous';
-            document.getElementById('identifierType').value = tagData.identifier_type || 'default';
-            
-            
-            // 연결 드롭박스 업데이트
-            updateLinkedAnnotationDropdown(tagId);
-            // 현재 태그의 entity_id에 맞게 드롭박스 선택값 설정
-            const linkedDropdown = document.getElementById('linkedAnnotation');
-            if (String(tagData.entity_id) === String(tagData.span_id)) {
-                // 자기 자신의 대표 id면 독립 어노테이션 선택
-                linkedDropdown.value = '';
-            } else {
-                // 다른 그룹이면 해당 entity_id 선택 (옵션이 없는 경우 대비)
-                const hasOption = Array.from(linkedDropdown.options).some(opt => String(opt.value) === String(tagData.entity_id));
-                linkedDropdown.value = hasOption ? String(tagData.entity_id) : '';
-            }
-            
-            // JSON 정보 생성
-            const jsonData = {
-                span_text: tagData.text,
-                entity_type: tagData.category,
-                start_offset: tagData.start,
-                end_offset: tagData.end,
-                span_id: tagData.span_id,
-                entity_id: tagData.entity_id,
-                annotator: tagData.annotator || "Anonymous",
-                identifier_type: tagData.identifier_type || 'default'
-            };
-            
-            document.getElementById('jsonDisplay').value = JSON.stringify(jsonData, null, 2);
-            
-            // 메타데이터 표시
-            const metadata = {
-                data_id: "{{ document.data_id }}",
-                number_of_subjects: {{ document.number_of_subjects|default:0 }},
-                provenance: {
-                    dialog_type: "{{ document.dialog_type|default:'' }}",
-                    turn_cnt: {{ document.turn_cnt|default:0 }},
-                    doc_id: "{{ document.doc_id|default:'' }}"
-                }
-            };
-            
-            document.getElementById('metadata').value = JSON.stringify(metadata, null, 2);
-            
-            // 모든 태그에서 선택 상태 제거
-            document.querySelectorAll('.existing-pii-tag').forEach(tag => {
-                tag.classList.remove('selected');
-            });
-            
-            // 선택된 태그에 선택 상태 추가
-            tagElement.classList.add('selected');
-            
-            // 연결된 태그들도 함께 하이라이트
-            highlightLinkedTags(tagData.entity_id);
-            applyLinkedTagStyles();
-
-            
-            // 현재 태그 타입에 해당하는 버튼 선택
-            const correspondingButton = document.querySelector(`[data-tag-type="${tagData.category}"]`);
-            if (correspondingButton) {
-                // 모든 태그 버튼에서 selected 클래스 제거
-                document.querySelectorAll('.pii-tag-btn').forEach(btn => btn.classList.remove('selected'));
-                // 해당 버튼에 selected 클래스 추가
-                correspondingButton.classList.add('selected');
-                selectedTagType = tagData.category;
-            }
+        if (!tagElement) return;
+        
+        const tagData = JSON.parse(tagElement.dataset.tagData);
+        
+        // 1. 먼저 모든 선택 상태 초기화
+        document.querySelectorAll('.existing-pii-tag').forEach(tag => {
+            tag.classList.remove('selected');
+        });
+        document.querySelectorAll('.pii-tag-btn').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+        
+        // 2. 현재 태그 선택 상태 설정
+        tagElement.classList.add('selected');
+        
+        // 3. 태그 버튼 선택 상태 설정
+        const correspondingButton = document.querySelector(`[data-tag-type="${tagData.category}"]`);
+        if (correspondingButton) {
+            correspondingButton.classList.add('selected');
+            selectedTagType = tagData.category;
         }
+        
+        // 4. 연결된 태그들 하이라이트 (시각적 효과)
+        highlightLinkedTags(tagData.entity_id);
+        
+        // 5. UI 폼 필드 업데이트
+        document.getElementById('selectedText').value = tagData.text;
+        document.getElementById('entityType').value = tagData.category;
+        document.getElementById('annotator').value = tagData.annotator || 'Anonymous';
+        document.getElementById('identifierType').value = tagData.identifier_type || 'default';
+        
+        // 6. 연결 드롭박스 업데이트
+        updateLinkedAnnotationDropdown(tagId);
+        const linkedDropdown = document.getElementById('linkedAnnotation');
+        if (String(tagData.entity_id) === String(tagData.span_id)) {
+            linkedDropdown.value = '';
+        } else {
+            const hasOption = Array.from(linkedDropdown.options).some(opt => String(opt.value) === String(tagData.entity_id));
+            linkedDropdown.value = hasOption ? String(tagData.entity_id) : '';
+        }
+        
+        // 7. JSON 데이터 생성 및 표시
+        const jsonData = {
+            span_text: tagData.text,
+            entity_type: tagData.category,
+            start_offset: tagData.start,
+            end_offset: tagData.end,
+            span_id: tagData.span_id,
+            entity_id: tagData.entity_id,
+            annotator: tagData.annotator || "Anonymous",
+            identifier_type: tagData.identifier_type || 'default'
+        };
+        document.getElementById('jsonDisplay').value = JSON.stringify(jsonData, null, 2);
+        
+        // 8. 메타데이터 표시 (정적 데이터이므로 마지막에)
+        const metadata = {
+            data_id: "{{ document.data_id }}",
+            number_of_subjects: {{ document.number_of_subjects|default:0 }},
+            provenance: {
+                dialog_type: "{{ document.dialog_type|default:'' }}",
+                turn_cnt: {{ document.turn_cnt|default:0 }},
+                doc_id: "{{ document.doc_id|default:'' }}"
+            }
+        };
+        document.getElementById('metadata').value = JSON.stringify(metadata, null, 2);
     };
     
     // 기존 태그 타입 업데이트 함수

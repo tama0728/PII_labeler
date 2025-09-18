@@ -41,9 +41,26 @@ def document_detail(request, pk):
     prev_document = Document.objects.filter(pk__lt=pk, created_by=request.user).order_by('-pk').first()
     next_document = Document.objects.filter(pk__gt=pk, created_by=request.user).order_by('pk').first()
     
+    # PII 태그들을 JSON 형태로 변환
+    pii_tags_json = []
+    for tag in pii_tags:
+        pii_tags_json.append({
+            'id': tag.id,
+            'start': tag.start_offset,
+            'end': tag.end_offset,
+            'text': tag.span_text,
+            'color': tag.pii_category.background_color,
+            'category': tag.pii_category.value,
+            'span_id': tag.span_id,
+            'entity_id': tag.entity_id,
+            'annotator': tag.annotator,
+            'identifier_type': tag.identifier_type
+        })
+    
     return render(request, 'main/document_detail.html', {
         'document': document,
         'pii_tags': pii_tags,
+        'pii_tags_json': json.dumps(pii_tags_json),
         'pii_categories': pii_categories,
         'prev_document': prev_document,
         'next_document': next_document,
