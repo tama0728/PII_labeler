@@ -263,7 +263,7 @@ def add_pii_tag(request):
             if not entity_id:
                 entity_id = span_id
             
-            PIITag.objects.create(
+            new_tag = PIITag.objects.create(
                 document=document,
                 pii_category=pii_category,
                 span_text=span_text,
@@ -276,7 +276,22 @@ def add_pii_tag(request):
                 created_by=request.user
             )
             
-            return JsonResponse({'success': True})
+            # 새로 생성된 태그의 모든 정보를 반환
+            return JsonResponse({
+                'success': True,
+                'tag': {
+                    'id': new_tag.id,
+                    'start': new_tag.start_offset,
+                    'end': new_tag.end_offset,
+                    'text': new_tag.span_text,
+                    'color': new_tag.pii_category.background_color,
+                    'category': new_tag.pii_category.value,
+                    'span_id': new_tag.span_id,
+                    'entity_id': new_tag.entity_id,
+                    'annotator': new_tag.annotator,
+                    'identifier_type': new_tag.identifier_type
+                }
+            })
             
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)})

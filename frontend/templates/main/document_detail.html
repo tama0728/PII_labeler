@@ -858,6 +858,120 @@ function applyLinkedTagStyles() {
     });
 }
 
+// 새 태그를 동적으로 추가하는 함수
+function addNewTagToDOM(tagData) {
+    const documentText = document.querySelector('.document-text');
+    const originalText = documentText.dataset.originalText;
+    
+    // 기존 태그들을 가져와서 정렬
+    const existingTags = Array.from(document.querySelectorAll('.existing-pii-tag')).map(el => {
+        const data = JSON.parse(el.dataset.tagData);
+        return {
+            id: data.id,
+            start: data.start,
+            end: data.end,
+            text: data.text,
+            color: data.color,
+            category: data.category,
+            span_id: data.span_id,
+            entity_id: data.entity_id,
+            annotator: data.annotator,
+            identifier_type: data.identifier_type
+        };
+    });
+    
+    // 새 태그 추가
+    existingTags.push(tagData);
+    
+    // 시작 위치 기준으로 정렬
+    existingTags.sort((a, b) => a.start - b.start);
+    
+    // HTML 재구성
+    let htmlContent = originalText;
+    
+    // 뒤에서부터 태그를 삽입 (인덱스 변화 방지)
+    for (let i = existingTags.length - 1; i >= 0; i--) {
+        const tag = existingTags[i];
+        const beforeTag = htmlContent.substring(0, tag.start);
+        const afterTag = htmlContent.substring(tag.end);
+        const tagHtml = `<span class="existing-pii-tag" style="background-color: ${tag.color};" title="${tag.category}: ${tag.text}" data-tag-id="${tag.id}" data-tag-data='${JSON.stringify(tag)}' onclick="selectExistingTag(${tag.id})">${tag.text}<button class="delete-btn" onclick="deleteTag(${tag.id}); event.stopPropagation();" title="태그 삭제">×</button></span>`;
+        htmlContent = beforeTag + tagHtml + afterTag;
+    }
+    
+    // 줄바꿈 처리
+    htmlContent = htmlContent.replace(/\n/g, '<br>');
+    documentText.innerHTML = htmlContent;
+
+    // 새로운 태그 선택
+    
+    console.log('새로운 태그 선택됨:', tagData.id);
+
+    // 연결된 태그들에 CSS 클래스 적용
+    setTimeout(() => {
+        applyLinkedTagStyles();
+        selectExistingTag(tagData.id);
+        highlightLinkedTags(tagData.entity_id);
+    }, 100);
+}
+
+// 태그를 동적으로 삭제하는 함수
+function removeTagFromDOM(tagId) {
+    const tagElement = document.querySelector(`[data-tag-id="${tagId}"]`);
+    if (tagElement) {
+        // 삭제된 태그의 데이터 저장
+        const tagData = JSON.parse(tagElement.dataset.tagData);
+        
+        // 기존 태그들을 가져와서 삭제할 태그 제외
+        const remainingTags = Array.from(document.querySelectorAll('.existing-pii-tag'))
+            .filter(el => el.dataset.tagId !== tagId.toString())
+            .map(el => {
+                const data = JSON.parse(el.dataset.tagData);
+                return {
+                    id: data.id,
+                    start: data.start,
+                    end: data.end,
+                    text: data.text,
+                    color: data.color,
+                    category: data.category,
+                    span_id: data.span_id,
+                    entity_id: data.entity_id,
+                    annotator: data.annotator,
+                    identifier_type: data.identifier_type
+                };
+            });
+        
+        const documentText = document.querySelector('.document-text');
+        const originalText = documentText.dataset.originalText;
+        
+        // 시작 위치 기준으로 정렬
+        remainingTags.sort((a, b) => a.start - b.start);
+        
+        // HTML 재구성
+        let htmlContent = originalText;
+        
+        // 뒤에서부터 태그를 삽입 (인덱스 변화 방지)
+        for (let i = remainingTags.length - 1; i >= 0; i--) {
+            const tag = remainingTags[i];
+            const beforeTag = htmlContent.substring(0, tag.start);
+            const afterTag = htmlContent.substring(tag.end);
+            const tagHtml = `<span class="existing-pii-tag" style="background-color: ${tag.color};" title="${tag.category}: ${tag.text}" data-tag-id="${tag.id}" data-tag-data='${JSON.stringify(tag)}' onclick="selectExistingTag(${tag.id})">${tag.text}<button class="delete-btn" onclick="deleteTag(${tag.id}); event.stopPropagation();" title="태그 삭제">×</button></span>`;
+            htmlContent = beforeTag + tagHtml + afterTag;
+        }
+        
+        // 줄바꿈 처리
+        htmlContent = htmlContent.replace(/\n/g, '<br>');
+        documentText.innerHTML = htmlContent;
+        
+        // UI 초기화
+        clearSelection();
+        
+        // 연결된 태그들에 CSS 클래스 적용
+        setTimeout(() => {
+            applyLinkedTagStyles();
+        }, 100);
+    }
+}
+
 // 연결된 태그들 하이라이트
 function highlightLinkedTags(entityId) {
     const allTags = document.querySelectorAll('.existing-pii-tag');
@@ -898,6 +1012,43 @@ function highlightLinkedTags(entityId) {
     
     // 연결된 태그 스타일도 적용
     applyLinkedTagStyles();
+}
+
+// 선택 초기화
+function clearSelection() {
+    // 모든 태그 버튼에서 selected 클래스 제거
+    document.querySelectorAll('.pii-tag-btn').forEach(btn => btn.classList.remove('selected'));
+    selectedTagType = null;
+    
+    // 모든 기존 태그에서 selected 클래스 제거
+    document.querySelectorAll('.existing-pii-tag').forEach(tag => {
+        tag.classList.remove('selected');
+    });
+    
+    // 문서 텍스트 커서 원래대로
+    const documentText = document.querySelector('.document-text');
+    if (documentText) {
+        documentText.style.cursor = 'text';
+        documentText.title = '';
+    }
+    
+    // 텍스트 선택 해제
+    window.getSelection().removeAllRanges();
+    
+    // 링크 스타일 재적용으로 화면 업데이트
+    if (typeof applyLinkedTagStyles === 'function') {
+        applyLinkedTagStyles();
+    }
+    
+    // 선택된 텍스트 정보 초기화
+    selectedText = '';
+    selectionStart = 0;
+    selectionEnd = 0;
+    
+    // 상세 정보 패널 초기화
+    document.getElementById('selectedText').value = '';
+    document.getElementById('entityType').value = '';
+    document.getElementById('jsonDisplay').value = '';
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -966,7 +1117,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateExistingTagType(selectedTag, newTagType);
                 
                 // 모든 버튼에서 selected 클래스 제거
-                tagButtons.forEach(btn => btn.classList.remove('selected'));
+                document.querySelectorAll('.pii-tag-btn').forEach(btn => btn.classList.remove('selected'));
                 // 클릭된 버튼에 selected 클래스 추가
                 this.classList.add('selected');
                 selectedTagType = newTagType;
@@ -980,7 +1131,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 //showSelectionInfo(selectedText, selectionStart, selectionEnd);
 
                 // 모든 버튼에서 selected 클래스 제거
-                tagButtons.forEach(btn => btn.classList.remove('selected'));
+                document.querySelectorAll('.pii-tag-btn').forEach(btn => btn.classList.remove('selected'));
                 // 클릭된 버튼에 selected 클래스 추가
                 this.classList.add('selected');
                 selectedTagType = newTagType;
@@ -996,7 +1147,10 @@ document.addEventListener('DOMContentLoaded', function() {
         clearTagHighlights();
         clearSelection();
         isSelecting = true;
-        documentText.style.userSelect = 'text';
+        const documentText = document.querySelector('.document-text');
+        if (documentText) {
+            documentText.style.userSelect = 'text';
+        }
 
         // 기존 선택 정보 숨기기
         hideSelectionInfo();
@@ -1104,7 +1258,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const rightTrimCount = processedText.length - processedText.trimEnd().length;
                 
                 // 모든 태그 버튼에서 selected 클래스 제거
-                tagButtons.forEach(btn => btn.classList.remove('selected'));
+                document.querySelectorAll('.pii-tag-btn').forEach(btn => btn.classList.remove('selected'));
                 selectedTagType = null;
                 
                 // 모든 기존 태그에서 selected 클래스 제거
@@ -1193,40 +1347,6 @@ document.addEventListener('DOMContentLoaded', function() {
         clearTagHighlights();
     });
     
-    // 선택 초기화
-    function clearSelection() {
-        // 모든 태그 버튼에서 selected 클래스 제거
-        tagButtons.forEach(btn => btn.classList.remove('selected'));
-        selectedTagType = null;
-        
-        // 모든 기존 태그에서 selected 클래스 제거
-        document.querySelectorAll('.existing-pii-tag').forEach(tag => {
-            tag.classList.remove('selected');
-        });
-        
-        // 문서 텍스트 커서 원래대로
-        documentText.style.cursor = 'text';
-        documentText.title = '';
-        
-        // 텍스트 선택 해제
-        window.getSelection().removeAllRanges();
-        
-        // 링크 스타일 재적용으로 화면 업데이트
-        if (typeof applyLinkedTagStyles === 'function') {
-            applyLinkedTagStyles();
-        }
-        
-        // 선택된 텍스트 정보 초기화
-        selectedText = '';
-        selectionStart = 0;
-        selectionEnd = 0;
-        
-        // 상세 정보 패널 초기화
-        document.getElementById('selectedText').value = '';
-        document.getElementById('entityType').value = '';
-        document.getElementById('jsonDisplay').value = '';
-    }
-    
     // 태그 겹침 검사 함수
     function checkTagOverlap(start, end) {
         const allTags = document.querySelectorAll('.existing-pii-tag');
@@ -1278,10 +1398,11 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .then(response => response.json())
-        .then(data => {
+.then(data => {
             if (data.success) {
-                // 성공 시 페이지 새로고침
-                location.reload();
+                // 성공 시 동적으로 새 태그 추가
+                addNewTagToDOM(data.tag);
+                console.log('새 태그가 성공적으로 추가되었습니다:', data.tag);
             } else {
                 alert('태그 추가 실패: ' + data.message);
             }
@@ -1321,8 +1442,9 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // 성공 시 페이지 새로고침
-                    location.reload();
+                    // 성공 시 동적으로 태그 제거
+                    removeTagFromDOM(tagId);
+                    console.log('태그가 성공적으로 삭제되었습니다:', tagId);
                 } else {
                     alert('태그 삭제 실패: ' + data.message);
                 }
