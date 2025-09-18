@@ -259,7 +259,25 @@ def add_pii_tag(request):
             
             # 자동 ID 생성
             if not span_id:
-                span_id = str(PIITag.objects.filter(document=document).count() + 1)
+                # 해당 문서의 모든 태그에서 가장 높은 span_id 찾기
+                existing_tags = PIITag.objects.filter(document=document)
+                if existing_tags.exists():
+                    # 숫자인 span_id들만 필터링해서 가장 높은 값 찾기
+                    numeric_span_ids = []
+                    for tag in existing_tags:
+                        try:
+                            numeric_span_ids.append(int(tag.span_id))
+                        except (ValueError, TypeError):
+                            continue
+                    
+                    if numeric_span_ids:
+                        max_span_id = max(numeric_span_ids)
+                        span_id = str(max_span_id + 1)
+                    else:
+                        span_id = "1"
+                else:
+                    span_id = "1"
+            
             if not entity_id:
                 entity_id = span_id
             
@@ -307,8 +325,57 @@ def delete_pii_tag(request):
         try:
             tag_id = request.POST.get('tag_id')
             tag = get_object_or_404(PIITag, id=tag_id)
+            
+            # 삭제할 태그의 정보 저장
+            document = tag.document
+            deleted_entity_id = tag.entity_id
+            deleted_span_id = tag.span_id
+            
+            # 삭제될 태그가 부모 태그인지 확인 (span_id == entity_id)
+            is_parent_tag = str(deleted_span_id) == str(deleted_entity_id)
+            
+            # 부모 태그 삭제 시 자식 태그들 처리
+            updated_tags = []
+            if is_parent_tag:
+                # 같은 entity_id를 가진 모든 자식 태그들 찾기
+                child_tags = PIITag.objects.filter(
+                    document=document,
+                    entity_id=deleted_entity_id
+                ).exclude(id=tag_id).order_by('span_id')
+                
+                if child_tags.exists():
+                    # 다음으로 가장 낮은 span_id 찾기 (새로운 부모)
+                    new_parent_span_id = min(int(child.span_id) for child in child_tags if child.span_id.isdigit())
+                    new_parent_entity_id = str(new_parent_span_id)
+                    
+                    # 모든 자식 태그들의 entity_id를 새로운 부모로 변경
+                    for child_tag in child_tags:
+                        child_tag.entity_id = new_parent_entity_id
+                        child_tag.save()
+                        
+                        # 업데이트된 태그 정보 저장
+                        updated_tags.append({
+                            'id': child_tag.id,
+                            'start': child_tag.start_offset,
+                            'end': child_tag.end_offset,
+                            'text': child_tag.span_text,
+                            'color': child_tag.pii_category.background_color,
+                            'category': child_tag.pii_category.value,
+                            'span_id': child_tag.span_id,
+                            'entity_id': child_tag.entity_id,
+                            'annotator': child_tag.annotator,
+                            'identifier_type': child_tag.identifier_type
+                        })
+            
+            # 태그 삭제
             tag.delete()
-            return JsonResponse({'success': True})
+            
+            return JsonResponse({
+                'success': True,
+                'updated_tags': updated_tags,
+                'deleted_tag_id': tag_id
+            })
+            
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)})
     

@@ -972,6 +972,66 @@ function removeTagFromDOM(tagId) {
     }
 }
 
+// 부모 태그 삭제 후 자식 태그들을 업데이트하는 함수
+function updateTagsAfterParentDeletion(updatedTags, deletedTagId) {
+    const documentText = document.querySelector('.document-text');
+    const originalText = documentText.dataset.originalText;
+    
+    // 삭제될 태그를 제외한 기존 태그들 가져오기
+    const remainingTags = Array.from(document.querySelectorAll('.existing-pii-tag'))
+        .filter(el => el.dataset.tagId !== deletedTagId.toString())
+        .map(el => {
+            const data = JSON.parse(el.dataset.tagData);
+            return {
+                id: data.id,
+                start: data.start,
+                end: data.end,
+                text: data.text,
+                color: data.color,
+                category: data.category,
+                span_id: data.span_id,
+                entity_id: data.entity_id,
+                annotator: data.annotator,
+                identifier_type: data.identifier_type
+            };
+        });
+    
+    // 업데이트된 태그들의 정보로 기존 태그들 업데이트
+    updatedTags.forEach(updatedTag => {
+        const existingTagIndex = remainingTags.findIndex(tag => tag.id === updatedTag.id);
+        if (existingTagIndex !== -1) {
+            remainingTags[existingTagIndex] = updatedTag;
+        }
+    });
+    
+    // 시작 위치 기준으로 정렬
+    remainingTags.sort((a, b) => a.start - b.start);
+    
+    // HTML 재구성
+    let htmlContent = originalText;
+    
+    // 뒤에서부터 태그를 삽입 (인덱스 변화 방지)
+    for (let i = remainingTags.length - 1; i >= 0; i--) {
+        const tag = remainingTags[i];
+        const beforeTag = htmlContent.substring(0, tag.start);
+        const afterTag = htmlContent.substring(tag.end);
+        const tagHtml = `<span class="existing-pii-tag" style="background-color: ${tag.color};" title="${tag.category}: ${tag.text}" data-tag-id="${tag.id}" data-tag-data='${JSON.stringify(tag)}' onclick="selectExistingTag(${tag.id})">${tag.text}<button class="delete-btn" onclick="deleteTag(${tag.id}); event.stopPropagation();" title="태그 삭제">×</button></span>`;
+        htmlContent = beforeTag + tagHtml + afterTag;
+    }
+    
+    // 줄바꿈 처리
+    htmlContent = htmlContent.replace(/\n/g, '<br>');
+    documentText.innerHTML = htmlContent;
+    
+    // UI 초기화
+    clearSelection();
+    
+    // 연결된 태그들에 CSS 클래스 적용
+    setTimeout(() => {
+        applyLinkedTagStyles();
+    }, 100);
+}
+
 // 연결된 태그들 하이라이트
 function highlightLinkedTags(entityId) {
     const allTags = document.querySelectorAll('.existing-pii-tag');
@@ -1440,10 +1500,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .then(response => response.json())
-            .then(data => {
+.then(data => {
                 if (data.success) {
-                    // 성공 시 동적으로 태그 제거
-                    removeTagFromDOM(tagId);
+                    // 업데이트된 태그들이 있는 경우 먼저 처리
+                    if (data.updated_tags && data.updated_tags.length > 0) {
+                        updateTagsAfterParentDeletion(data.updated_tags, tagId);
+                    } else {
+                        // 일반 태그 삭제
+                        removeTagFromDOM(tagId);
+                    }
                     console.log('태그가 성공적으로 삭제되었습니다:', tagId);
                 } else {
                     alert('태그 삭제 실패: ' + data.message);
