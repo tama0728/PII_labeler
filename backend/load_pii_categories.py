@@ -18,7 +18,7 @@ def load_pii_categories(overwrite=False):
     """
     
     # tag.json 파일 읽기
-    with open('./backend/tag.json', 'r', encoding='utf-8') as f:
+    with open('./tag.json', 'r', encoding='utf-8') as f:
         categories_data = json.load(f)
     
     created_count = 0
