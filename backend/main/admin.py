@@ -12,7 +12,7 @@ class PIICategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Document)
 class DocumentAdmin(admin.ModelAdmin):
-    list_display = ['data_id', 'number_of_subjects', 'provenance', 'created_by', 'created_at', 'updated_at']
+    list_display = ['data_id', 'number_of_subjects', 'created_by', 'created_at', 'updated_at']
     list_filter = ['created_at', 'updated_at', 'created_by']
     search_fields = ['data_id', 'text']
     readonly_fields = ['created_at', 'updated_at']
