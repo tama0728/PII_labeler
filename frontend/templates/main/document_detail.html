@@ -21,7 +21,7 @@
     border-radius: 15px;
     cursor: pointer;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 600;
     transition: all 0.2s ease;
     position: relative;
     color: white;
@@ -387,6 +387,79 @@
         display: none;
     }
 }
+
+/* 문서 헤더를 좁은 너비에서도 한 줄 유지 */
+.card-header {
+    overflow: hidden;
+}
+.card-header > .d-flex {
+    flex-wrap: nowrap;
+    gap: 8px;
+}
+.card-header .d-flex.align-items-center {
+    flex-wrap: nowrap;
+}
+.card-header > .d-flex > .d-flex:first-child { /* 좌측(뒤로가기+제목) */
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.card-header > .d-flex > .d-flex:last-child { /* 우측(네비 버튼/배지) */
+    flex: 0 0 auto;
+}
+.card-header h4 {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 40vw;
+}
+.card-header .btn,
+.card-header .badge,
+.card-header .me-3,
+.card-header .ms-2 {
+    white-space: nowrap;
+}
+.card-header .d-flex > div {
+    min-width: 0; /* flex item 내 ellipsis 동작 보장 */
+}
+.card-header .btn { flex-shrink: 0; }
+.card-header .me-3 { margin-right: 8px !important; }
+.card-header .ms-2 { margin-left: 6px !important; }
+
+/* 반응형 축소: 너비가 줄수록 폰트/박스 크기 축소 */
+@media (max-width: 1200px) {
+    .card-header h4 { font-size: 1.05rem; max-width: 32vw; }
+    .card-header .btn { padding: 4px 8px; font-size: 0.9rem; }
+    .card-header .badge { font-size: 0.75rem; }
+    .card-header small.d-block { display: none; } /* 버튼 아래 작은 부제 숨김 */
+    .card-header .me-3 .text-muted, .card-header .me-3 .badge.bg-light { display: none; }
+}
+
+@media (max-width: 992px) {
+    .card-header h4 { font-size: 1rem; max-width: 40vw; }
+    .card-header .btn { padding: 3px 7px; font-size: 0.85rem; }
+    .card-header .badge { font-size: 0.7rem; display: none; } /* 배지 숨김으로 공간 확보 */
+    .card-header .badge.shortcut-badge { display: inline-block; } /* 단축키 배지는 유지 */
+    .pii-tag-btn { padding: 5px 10px; font-size: 11px; min-width: 70px; }
+    .existing-pii-tag { font-size: 12px; padding: 1px 5px; }
+}
+
+@media (max-width: 768px) {
+    .card-header h4 { font-size: 0.95rem; max-width: 48vw; }
+    .card-header .btn { padding: 2px 6px; font-size: 0.8rem; }
+    .card-header .badge { font-size: 0.65rem; }
+    .entity-details-panel { padding: 14px; }
+}
+
+@media (max-width: 576px) {
+    .card-header h4 { font-size: 0.9rem; max-width: 55vw; }
+    .card-header .btn { padding: 2px 5px; font-size: 0; } /* 텍스트 숨기고 아이콘만 */
+    .card-header .btn i { font-size: 0.9rem; }
+    .card-header .badge { font-size: 0.6rem; }
+    .card-header .badge.shortcut-badge { font-size: 0.62rem; padding: 2px 6px; white-space: nowrap; }
+    .pii-tag-btn { padding: 4px 8px; font-size: 10px; min-width: 64px; }
+    .existing-pii-tag { font-size: 11px; padding: 1px 4px; }
+    .field-group input, .field-group select, .field-group textarea { padding: 6px 10px; font-size: 12px; }
+}
 </style>
 {% endblock %}
 
@@ -405,7 +478,7 @@
                     </div>
                     <div class="d-flex align-items-center">
                         <div class="me-3">
-                            <span class="badge bg-light text-dark mx-1">Ctrl + ←, →</span>
+                            <span class="badge bg-light text-dark mx-1 shortcut-badge">Ctrl + ←, →</span>
                             <span class="text-muted me-2">이전, 다음 문서</span>
                             {% if prev_document %}
                             <a href="{% url 'document_detail' prev_document.pk %}" class="btn btn-outline-primary btn-sm" title="이전 문서: {{ prev_document.data_id }} (Ctrl + ←)">
@@ -464,7 +537,7 @@
                         style="background-color: {{ category.background_color }};"
                         title="{{ category.description }}">
                     {{ category.value }}
-                    <small class="d-block" style="font-size: 10px; opacity: 0.9;">{{ category.description|truncatechars:15 }}</small>
+                    <small class="d-block" style="font-size: 12px; opacity: 0.9;">{{ category.description|truncatechars:15 }}</small>
                 </button>
                 {% endfor %}
             </div>
