@@ -1,10 +1,10 @@
 [
-  { "value": "PERSON", "background": "#e6194b", "description": "사람의 이름(별명/가명, 사용자 이름, 이니셜 포함)" },
-  { "value": "CODE", "background": "#3cb44b", "description": "무언가를 식별하는 번호 및 코드" },
-  { "value": "LOC", "background": "#062119", "description": "장소와 위치" },
-  { "value": "ORG", "background": "#0082c8", "description": "조직의 이름" },
-  { "value": "DEM", "background": "#f58231", "description": "사람의 인구통계 속성, 예:모국어, 혈통, 유산, 민족, 직함, 직급, 학력, 신체 묘사, 진단, 출생 표식, 나이" },
-  { "value": "DATETIME", "background": "#911eb4", "description": "특정 날짜, 시간, 기간" },
-  { "value": "QUANTITY", "background": "#460f0f", "description": "의미 있는 수량의 설명(예: 비율, 금액)" },
-  { "value": "MISC", "background": "#f032e6", "description": "의미 있는 수량의 설명(예: 비율, 금액)" }
+  { "value": "CODE",     "background": "#b71c1c", "description": "무언가를 식별하는 번호 및 코드" },
+  { "value": "DATETIME", "background": "#e65100", "description": "특정 날짜, 시간, 기간" },
+  { "value": "DEM",      "background": "#ff8f00", "description": "사람의 인구통계 속성, 예:모국어, 혈통, 유산, 민족, 직함, 직급, 학력, 신체 묘사, 진단, 출생 표식, 나이" },
+  { "value": "LOC",      "background": "#8bbe23", "description": "장소와 위치" },
+  { "value": "MISC",     "background": "#2e7d32", "description": "의미 있는 수량의 설명(예: 비율, 금액)" },
+  { "value": "ORG",      "background": "#00838f", "description": "조직의 이름" },
+  { "value": "PERSON",   "background": "#1565c0", "description": "사람의 이름(별명/가명, 사용자 이름, 이니셜 포함)" },
+  { "value": "QUANTITY", "background": "#4a148c", "description": "의미 있는 수량의 설명(예: 비율, 금액)" }
 ]
