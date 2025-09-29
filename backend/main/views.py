@@ -118,9 +118,7 @@ def document_create(request):
                             document = Document.objects.create(
                                 data_id=data_id_value,
                                 number_of_subjects=metadata.get('number_of_subjects', 0),
-                                dialog_type=metadata.get('provenance', {}).get('dialog_type', ''),
-                                turn_cnt=metadata.get('provenance', {}).get('turn_cnt', 0),
-                                doc_id=metadata.get('provenance', {}).get('doc_id', ''),
+                                provenance=json.dumps(metadata.get('provenance', {}), ensure_ascii=False),
                                 text=data.get('text', ''),
                                 created_by=request.user
                             )
@@ -455,14 +453,14 @@ def download_jsonl(request):
         pii_tags = PIITag.objects.filter(document=document)
         
         # 메타데이터 구성
+        try:
+            provenance_obj = json.loads(document.provenance) if document.provenance else {}
+        except Exception:
+            provenance_obj = document.provenance or {}
         metadata = {
             'data_id': document.data_id,
             'number_of_subjects': document.number_of_subjects,
-            'provenance': {
-                'dialog_type': document.dialog_type,
-                'turn_cnt': document.turn_cnt,
-                'doc_id': document.doc_id
-            }
+            'provenance': provenance_obj
         }
         
         # 엔티티 구성
