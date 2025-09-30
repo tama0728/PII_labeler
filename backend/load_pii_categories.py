@@ -23,6 +23,7 @@ def load_pii_categories(clear_existing: bool = False, path: str = './tag.json'):
         categories_data = json.load(f)
 
     if clear_existing:
+        print("기존 카테고리를 모두 삭제합니다...")
         PIICategory.objects.all().delete()
 
     created_or_updated_count = 0
@@ -31,7 +32,7 @@ def load_pii_categories(clear_existing: bool = False, path: str = './tag.json'):
         background_color = category_data['background']
         description = category_data['description']
 
-        category, _created = PIICategory.objects.update_or_create(
+        category, created = PIICategory.objects.update_or_create(
             value=value,
             defaults={
                 'background_color': background_color,
@@ -39,8 +40,12 @@ def load_pii_categories(clear_existing: bool = False, path: str = './tag.json'):
             },
         )
 
+        if created:
+            print(f'PII 카테고리 생성: {value}')
+        else:
+            print(f'PII 카테고리 업데이트: {value}')
+
         created_or_updated_count += 1
-        print(f'PII 카테고리 생성/업데이트: {value}')
 
     print(f'총 {created_or_updated_count}개의 PII 카테고리를 처리했습니다.')
 
@@ -48,7 +53,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PII 카테고리를 tag.json 파일에서 로드합니다.')
     parser.add_argument('--path', default='./tag.json', help='카테고리 JSON 파일 경로 (기본: ./tag.json)')
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('--clear-existing', dest='clear_existing', action='store_true', help='기존 카테고리를 모두 삭제 후 로드')
+    group.add_argument('--clear', dest='clear_existing', action='store_true', help='기존 카테고리를 모두 삭제 후 로드')
     parser.set_defaults(clear_existing=False)
 
     args = parser.parse_args()

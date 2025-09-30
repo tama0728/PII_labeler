@@ -35,7 +35,7 @@ def document_detail(request, pk):
     """문서 상세 페이지"""
     document = get_object_or_404(Document, pk=pk, created_by=request.user)
     pii_tags = PIITag.objects.filter(document=document).order_by('start_offset')
-    pii_categories = PIICategory.objects.all()
+    pii_categories = PIICategory.objects.all().order_by('created_at')
     
     # 이전/다음 문서 찾기 (현재 사용자의 문서만)
     prev_document = Document.objects.filter(pk__lt=pk, created_by=request.user).order_by('-pk').first()
