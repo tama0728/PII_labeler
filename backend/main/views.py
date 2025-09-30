@@ -162,7 +162,10 @@ def document_create(request):
                                         # end_offset이 start_offset보다 작아지지 않도록 보정
                                         if end_offset <= start_offset:
                                             end_offset = start_offset + len(trimmed_span_text)
-                                    
+                                    if pii_category == "MASK":
+                                        pii_category = "MISC"
+                                    if trimmed_span_text == "" or end_offset == 0:
+                                        continue
                                     PIITag.objects.create(
                                         document=document,
                                         pii_category=pii_category,
