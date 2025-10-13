@@ -14,7 +14,7 @@ sync_from_github:
     - schedules
     - web
   script:
-    - git clone https://${GITHUB_TOKEN}@github.com/maisonOP/PII_labeler.git temp_repo
+    - git clone https://${GITHUB_TOKEN}@github.com/tama0728/PII_labeler.git temp_repo
     - cd temp_repo
     - git config --global http.sslVerify false
     - git remote add gitlab http://oauth2:${GITLAB_TOKEN}@10.10.17.81:81/common/PII_labeler.git
