@@ -1,0 +1,25 @@
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - when: never
+
+stages:
+  - sync
+
+sync_from_github:
+  image: bitnami/git:latest
+  stage: sync
+  only:
+    - schedules
+    - web
+  script:
+    - git clone https://${GITHUB_TOKEN}@github.com/maisonOP/PII_labeler.git temp_repo
+    - cd temp_repo
+    - git config --global http.sslVerify false
+    - git remote add gitlab http://oauth2:${GITLAB_TOKEN}@10.10.17.81:81/common/PII_labeler.git
+    - git push gitlab --all --force
+    - git push gitlab --tags --force
+  variables:
+    GIT_STRATEGY: none
+    GIT_SSL_NO_VERIFY: "true"
