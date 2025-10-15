@@ -1669,6 +1669,7 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('tag_id', tagId);
         formData.append('pii_category_value', newType);
         formData.append('identifier_type', identifierType);
+        formData.append('entity_id', tagData.entity_id == '' ? tagData.span_id : tagData.entity_id);
         formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
 
         fetch('{% url "update_pii_tag" %}', {
@@ -1698,7 +1699,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     start_offset: tagData.start,
                     end_offset: tagData.end,
                     span_id: tagData.span_id,
-                    entity_id: tagData.entity_id,
+                    entity_id: tagData.entity_id == '' ? tagData.span_id : tagData.entity_id,
                     annotator: "{{ user.username }}",
                     identifier_type: identifierType
                 };
