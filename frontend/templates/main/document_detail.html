@@ -585,7 +585,6 @@
                 <div class="field-group">
                     <label>식별자 유형 (identifier_type):</label>
                     <select id="identifierType" onchange="updateIdentifierTypeAndSave()">
-                        <option value="default">default (마스킹 필요 없음)</option>
                         <option value="direct">직접식별자</option>
                         <option value="quasi">준식별자</option>
                     </select>
@@ -770,7 +769,7 @@ function updateEntityIdAndSave() {
         allTagElements.forEach(tagElement => {
             const data = JSON.parse(tagElement.dataset.tagData);
             if (String(data.entity_id) === String(newEntityId) && data.id !== currentTagData.id) {
-                const idType = data.identifier_type || document.getElementById('identifierType').value || 'default';
+                const idType = data.identifier_type || document.getElementById('identifierType').value || 'quasi';
                 saveTagUpdate(data.id, data.category, idType, newEntityId);
             }
         });
@@ -787,7 +786,7 @@ function updateIdentifierTypeAndSave() {
     }
     
     const currentTagData = JSON.parse(currentTagElement.dataset.tagData);
-    const identifierType = document.getElementById('identifierType').value || 'default';
+    const identifierType = document.getElementById('identifierType').value || 'quasi';
     currentTagElement.dataset.tagData = JSON.stringify({...currentTagData, identifier_type: identifierType});
     // 서버에 저장
     saveTagUpdate(currentTagData.id, currentTagData.category, identifierType, currentTagData.entity_id);
@@ -820,7 +819,7 @@ function saveTagUpdate(tagId, piiCategoryValue, identifierType, entityId) {
             const tagElement = document.querySelector(`[data-tag-id="${tagId}"]`);
             if (tagElement) {
                 const localData = JSON.parse(tagElement.dataset.tagData);
-                localData.identifier_type = identifierType || 'default';
+                localData.identifier_type = identifierType || 'quasi';
                 if (entityId) {
                     localData.entity_id = entityId;
                 }
@@ -829,7 +828,7 @@ function saveTagUpdate(tagId, piiCategoryValue, identifierType, entityId) {
                 // 현재 선택된 태그라면 드롭박스 값도 갱신
                 if (tagElement.classList.contains('selected')) {
                     const identifierSelect = document.getElementById('identifierType');
-                    if (identifierSelect) identifierSelect.value = localData.identifier_type || 'default';
+                    if (identifierSelect) identifierSelect.value = localData.identifier_type || 'quasi';
                 }
             }
         } else {
@@ -877,7 +876,7 @@ function updateJsonDisplay() {
             span_id: tagData.span_id,
             entity_id: tagData.entity_id,
             annotator: tagData.annotator || "Anonymous",
-            identifier_type: tagData.identifier_type || 'default'
+            identifier_type: tagData.identifier_type || 'quasi'
         };
         
         document.getElementById('jsonDisplay').value = JSON.stringify(jsonData, null, 2);
@@ -1625,7 +1624,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('selectedText').value = tagData.text;
         document.getElementById('entityType').value = tagData.category;
         document.getElementById('annotator').value = tagData.annotator || 'Anonymous';
-        document.getElementById('identifierType').value = tagData.identifier_type || 'default';
+        document.getElementById('identifierType').value = tagData.identifier_type || 'quasi';
         
         // 6. 연결 드롭박스 업데이트
         updateLinkedAnnotationDropdown(tagId);
@@ -1646,7 +1645,7 @@ document.addEventListener('DOMContentLoaded', function() {
             span_id: tagData.span_id,
             entity_id: tagData.entity_id,
             annotator: tagData.annotator || "Anonymous",
-            identifier_type: tagData.identifier_type || 'default'
+            identifier_type: tagData.identifier_type || 'quasi'
         };
         document.getElementById('jsonDisplay').value = JSON.stringify(jsonData, null, 2);
         
@@ -1663,7 +1662,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateExistingTagType(tagElement, newType) {
         const tagId = tagElement.dataset.tagId;
         const tagData = JSON.parse(tagElement.dataset.tagData);
-        const identifierType = tagData.identifier_type || 'default';
+        const identifierType = tagData.identifier_type || 'quasi';
         
         const formData = new FormData();
         formData.append('tag_id', tagId);

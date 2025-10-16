@@ -134,7 +134,7 @@ def document_create(request):
                                     span_id = entity.get('span_id', '')
                                     entity_id = entity.get('entity_id', '')
                                     annotator = entity.get('annotator', 'Anonymous')
-                                    identifier_type = entity.get('identifier_type', 'default')
+                                    identifier_type = entity.get('identifier_type', 'quasi')
                                     if not span_id:
                                         span_id = PIITag.objects.filter(document=document).count()+1
                                     if not entity_id:
@@ -142,7 +142,7 @@ def document_create(request):
                                     if not annotator:
                                         annotator = 'Anonymous'
                                     if not identifier_type:
-                                        identifier_type = 'default'
+                                        identifier_type = 'quasi'
 
                                     # 공백 트림 처리
                                     original_span_text = entity.get('span_text', '')
@@ -221,7 +221,7 @@ def add_pii_tag(request):
             span_id = request.POST.get('span_id', '')
             entity_id = request.POST.get('entity_id', '')
             annotator = request.POST.get('annotator', 'Anonymous')
-            identifier_type = request.POST.get('identifier_type', 'default')
+            identifier_type = request.POST.get('identifier_type', 'quasi')
             
             document = get_object_or_404(Document, id=document_id)
             pii_category = get_object_or_404(PIICategory, value=pii_category_value)
@@ -291,7 +291,7 @@ def add_pii_tag(request):
                 span_id=span_id,
                 entity_id=entity_id,
                 annotator=annotator or 'Anonymous',
-                identifier_type=identifier_type or 'default',
+                identifier_type=identifier_type or 'quasi',
                 created_by=request.user
             )
             
@@ -391,7 +391,7 @@ def update_pii_tag(request):
         try:
             tag_id = request.POST.get('tag_id')
             pii_category_value = request.POST.get('pii_category_value')
-            identifier_type = request.POST.get('identifier_type', 'default')
+            identifier_type = request.POST.get('identifier_type', 'quasi')
             entity_id = request.POST.get('entity_id', '')
             
             tag = get_object_or_404(PIITag, id=tag_id)
@@ -400,7 +400,7 @@ def update_pii_tag(request):
                 pii_category = get_object_or_404(PIICategory, value=pii_category_value)
                 tag.pii_category = pii_category
             
-            tag.identifier_type = identifier_type or 'default'
+            tag.identifier_type = identifier_type or 'quasi'
             tag.entity_id = entity_id
             tag.annotator = request.user.username
             tag.save()
