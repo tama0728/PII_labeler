@@ -6,6 +6,7 @@ from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
 from django.db import IntegrityError, transaction
 from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
 import json
 import os
 from .models import Document, PIICategory, PIITag
@@ -312,6 +313,10 @@ def add_pii_tag(request):
                     'entity_id': new_tag.entity_id,
                     'annotator': new_tag.annotator,
                     'identifier_type': new_tag.identifier_type
+                },
+                'document_info': {
+                    'updated_at': document.updated_at.astimezone(timezone.get_current_timezone()).strftime('%Y-%m-%d %H:%M'),
+                    'pii_count': document.pii_tags.count()
                 }
             })
             
@@ -378,7 +383,11 @@ def delete_pii_tag(request):
             return JsonResponse({
                 'success': True,
                 'updated_tags': updated_tags,
-                'deleted_tag_id': tag_id
+                'deleted_tag_id': tag_id,
+                'document_info': {
+                    'updated_at': document.updated_at.astimezone(timezone.get_current_timezone()).strftime('%Y-%m-%d %H:%M'),
+                    'pii_count': document.pii_tags.count()
+                }
             })
             
         except Exception as e:
@@ -411,7 +420,15 @@ def update_pii_tag(request):
             document = tag.document
             document.updated_at = datetime.now()
             document.save()
-            return JsonResponse({'success': True, 'new_color': pii_category.background_color, 'new_category': tag.pii_category.value})
+            return JsonResponse({
+                'success': True, 
+                'new_color': pii_category.background_color, 
+                'new_category': tag.pii_category.value,
+                'document_info': {
+                    'updated_at': document.updated_at.astimezone(timezone.get_current_timezone()).strftime('%Y-%m-%d %H:%M'),
+                    'pii_count': document.pii_tags.count()
+                }
+            })
             
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)})

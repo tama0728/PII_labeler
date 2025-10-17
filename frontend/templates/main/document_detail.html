@@ -816,6 +816,11 @@ function saveTagUpdate(tagId, piiCategoryValue, identifierType, entityId) {
             // JSON 표시 업데이트
             updateJsonDisplay();
 
+            // 문서 정보 업데이트
+            if (data.document_info) {
+                updateDocumentInfo(data.document_info);
+            }
+
             // 로컬 데이터 동기화: identifier_type, entity_id 반영
             const tagElement = document.querySelector(`[data-tag-id="${tagId}"]`);
             if (tagElement) {
@@ -831,6 +836,11 @@ function saveTagUpdate(tagId, piiCategoryValue, identifierType, entityId) {
                     const identifierSelect = document.getElementById('identifierType');
                     if (identifierSelect) identifierSelect.value = localData.identifier_type || 'quasi';
                 }
+            }
+            
+            // 문서 정보 업데이트
+            if (data.document_info) {
+                updateDocumentInfo(data.document_info);
             }
         } else {
             console.error('태그 업데이트 실패:', data.message);
@@ -885,6 +895,21 @@ function updateJsonDisplay() {
 
     // 화면 업데이트
     applyLinkedTagStyles();
+}
+
+// 문서 정보 업데이트 함수
+function updateDocumentInfo(documentInfo) {
+    // 수정시간 업데이트
+    const updatedAtElements = document.querySelectorAll('.badge.bg-warning');
+    if (updatedAtElements.length > 0) {
+        updatedAtElements[0].innerHTML = `${documentInfo.updated_at}`;
+    }
+    
+    // PII 태그 개수 업데이트
+    const piiCountElements = document.querySelectorAll('.badge.bg-info');
+    if (piiCountElements.length > 0) {
+        piiCountElements[0].innerHTML = `${documentInfo.pii_count} PII 태그`;
+    }
 }
 
 // 연결된 태그들에 스타일 적용
@@ -1530,11 +1555,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .then(response => response.json())
-.then(data => {
+        .then(data => {
             if (data.success) {
                 // 성공 시 동적으로 새 태그 추가
                 addNewTagToDOM(data.tag);
                 console.log('새 태그가 성공적으로 추가되었습니다:', data.tag);
+                
+                // 문서 정보 업데이트
+                if (data.document_info) {
+                    updateDocumentInfo(data.document_info);
+                }
             } else {
                 alert('태그 추가 실패: ' + data.message);
             }
@@ -1572,7 +1602,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .then(response => response.json())
-.then(data => {
+            .then(data => {
                 if (data.success) {
                     // 업데이트된 태그들이 있는 경우 먼저 처리
                     if (data.updated_tags && data.updated_tags.length > 0) {
@@ -1582,6 +1612,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         removeTagFromDOM(tagId);
                     }
                     console.log('태그가 성공적으로 삭제되었습니다:', tagId);
+                    
+                    // 문서 정보 업데이트
+                    if (data.document_info) {
+                        updateDocumentInfo(data.document_info);
+                    }
                 } else {
                     alert('태그 삭제 실패: ' + data.message);
                 }
@@ -1691,8 +1726,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('entityType').value = data.new_category;
                 document.getElementById('annotator').value = "{{ user.username }}";  // 어노테이터 업데이트
                 
+                // 문서 정보 업데이트
+                if (data.document_info) {
+                    updateDocumentInfo(data.document_info);
+                }
+
                 // JSON 정보 업데이트
-                
                 const jsonData = {
                     span_text: tagData.text,
                     entity_type: data.new_category,
