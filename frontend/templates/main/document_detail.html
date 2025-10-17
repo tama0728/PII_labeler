@@ -947,7 +947,8 @@ function applyLinkedTagStyles() {
             const tagData = JSON.parse(tag.dataset.tagData);
             
             // span_id와 entity_id가 다르면 연결된 태그 (linked 클래스 추가)
-            if (String(tagData.span_id) !== String(tagData.entity_id)) {
+            // if (String(tagData.span_id) !== String(tagData.entity_id)) {
+            if (String(tagData.span_id).match(/\d+/g)?.join('') !== String(tagData.entity_id).match(/\d+/g)?.join('')) {
                 tag.classList.add('linked');
             }
             // span_id와 entity_id가 같으면 독립 태그 (linked 클래스는 이미 제거됨)
