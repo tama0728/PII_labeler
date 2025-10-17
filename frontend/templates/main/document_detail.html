@@ -503,6 +503,7 @@
                             {% endif %}
                         </div>
                         <div>
+                            <span class="badge bg-warning">{{ document.updated_at|date:"Y-m-d H:i" }}</span>
                             <span class="badge bg-secondary">{{ document.created_at|date:"Y-m-d H:i" }}</span>
                             <span class="badge bg-info">{{ pii_tags.count }} PII 태그</span>
                         </div>
@@ -1558,7 +1559,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 전역 태그 삭제 함수
     window.deleteTag = function(tagId) {
-        if (confirm('이 태그를 삭제하시겠습니까?')) {
+        //if (confirm('이 태그를 삭제하시겠습니까?')) {
             const formData = new FormData();
             formData.append('tag_id', tagId);
             formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
@@ -1589,7 +1590,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error:', error);
                 alert('오류가 발생했습니다.');
             });
-        }
+        // }
     };
     
     // 기존 태그 선택 함수

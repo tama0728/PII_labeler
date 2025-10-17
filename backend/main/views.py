@@ -9,7 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 import os
 from .models import Document, PIICategory, PIITag
-
+from datetime import datetime
 
 def index(request):
     """메인 페이지"""
@@ -295,6 +295,9 @@ def add_pii_tag(request):
                 created_by=request.user
             )
             
+            document.updated_at = datetime.now()
+            document.save()
+            
             # 새로 생성된 태그의 모든 정보를 반환
             return JsonResponse({
                 'success': True,
@@ -370,7 +373,8 @@ def delete_pii_tag(request):
             
             # 태그 삭제
             tag.delete()
-            
+            document.updated_at = datetime.now()
+            document.save()
             return JsonResponse({
                 'success': True,
                 'updated_tags': updated_tags,
@@ -404,7 +408,9 @@ def update_pii_tag(request):
             tag.entity_id = entity_id
             tag.annotator = request.user.username
             tag.save()
-            
+            document = tag.document
+            document.updated_at = datetime.now()
+            document.save()
             return JsonResponse({'success': True, 'new_color': pii_category.background_color, 'new_category': tag.pii_category.value})
             
         except Exception as e:
