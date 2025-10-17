@@ -144,7 +144,11 @@ def document_create(request):
                                         annotator = 'Anonymous'
                                     if not identifier_type:
                                         identifier_type = 'quasi'
-
+                                    if identifier_type == 'no_mask':
+                                        if pii_category == "PERSON" or pii_category == "CODE":
+                                            identifier_type = 'direct'
+                                        else:
+                                            identifier_type = 'quasi'
                                     # 공백 트림 처리
                                     original_span_text = entity.get('span_text', '')
                                     trimmed_span_text = original_span_text.strip()
