@@ -135,7 +135,7 @@ def document_create(request):
                                     span_id = entity.get('span_id', '')
                                     entity_id = entity.get('entity_id', '')
                                     annotator = entity.get('annotator', 'Anonymous')
-                                    identifier_type = entity.get('identifier_type', 'quasi')
+                                    identifier_type = entity.get('identifier_type', 'quasi').lower()
                                     if not span_id:
                                         span_id = PIITag.objects.filter(document=document).count()+1
                                     if not entity_id:
