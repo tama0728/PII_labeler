@@ -657,8 +657,8 @@ function updateLinkedAnnotationDropdown(currentTagId) {
     dropdown.innerHTML = '<option value="">독립 어노테이션</option>';
 
     // 현재 문서의 모든 어노테이션을 엔티티 그룹으로 묶기
-    const allTags = Array.from(document.querySelectorAll('.existing-pii-tag')).map(el => JSON.parse(el.dataset.tagData));
-    const currentTagData = JSON.parse(document.querySelector(`[data-tag-id="${currentTagId}"]`).dataset.tagData);
+    const allTags = Array.from(document.querySelectorAll('.existing-pii-tag')).map(el => safeJsonParse(el.dataset.tagData));
+    const currentTagData = safeJsonParse(document.querySelector(`[data-tag-id="${currentTagId}"]`).dataset.tagData);
 
     const entityIdToTags = new Map();
     allTags.forEach(tag => {
@@ -674,7 +674,7 @@ function updateLinkedAnnotationDropdown(currentTagId) {
         if (!entityId) return;
         // 현재 태그가 독립(자기 span_id)일 때, 그 자기 span_id 그룹만 숨김
         // 이미 다른 그룹(entity_id)로 연결된 경우, 그 그룹은 표시되어야 함
-        const currentTagData = JSON.parse(document.querySelector(`[data-tag-id="${currentTagId}"]`).dataset.tagData);
+        const currentTagData = safeJsonParse(document.querySelector(`[data-tag-id="${currentTagId}"]`).dataset.tagData);
         const isOwnIndependentGroup = String(entityId) === String(currentTagData.span_id);
         if (isOwnIndependentGroup) return;
 
@@ -711,7 +711,7 @@ function updateEntityIdAndSave() {
         return;
     }
     
-    const currentTagData = JSON.parse(currentTagElement.dataset.tagData);
+    const currentTagData = safeJsonParse(currentTagElement.dataset.tagData);
     let newEntityId = '';
     
     if (!selectedEntityId) {
@@ -722,7 +722,7 @@ function updateEntityIdAndSave() {
         const allTagElements = document.querySelectorAll('.existing-pii-tag');
         const connectedTags = [];
         allTagElements.forEach(tagElement => {
-            const tagData = JSON.parse(tagElement.dataset.tagData);
+            const tagData = safeJsonParse(tagElement.dataset.tagData);
             if (String(tagData.entity_id) === String(selectedEntityId)) {
                 connectedTags.push(tagElement);
             }
@@ -735,7 +735,7 @@ function updateEntityIdAndSave() {
         // 자신의 span_id에 연결되어 있던 다른 태그들도 같이 연결
         if (String(currentTagData.span_id) === String(currentTagData.entity_id)) {
             allTagElements.forEach(tagElement => {
-                const tagData = JSON.parse(tagElement.dataset.tagData);
+                const tagData = safeJsonParse(tagElement.dataset.tagData);
                 if (String(tagData.entity_id) === String(currentTagData.span_id)) {
                     // 중복 추가 방지
                     if (!connectedTags.includes(tagElement)) {
@@ -747,7 +747,7 @@ function updateEntityIdAndSave() {
         
         // 가장 작은 span_id를 entity_id로 사용
         const minSpanId = Math.min(...connectedTags.map(tag => {
-            const data = JSON.parse(tag.dataset.tagData);
+            const data = safeJsonParse(tag.dataset.tagData);
             return parseInt(data.span_id) || 0;
         }));
         
@@ -769,7 +769,7 @@ function updateEntityIdAndSave() {
     if (selectedEntityId) {
         const allTagElements = document.querySelectorAll('.existing-pii-tag');
         allTagElements.forEach(tagElement => {
-            const data = JSON.parse(tagElement.dataset.tagData);
+            const data = safeJsonParse(tagElement.dataset.tagData);
             if (String(data.entity_id) === String(newEntityId) && data.id !== currentTagData.id) {
                 const idType = data.identifier_type || document.getElementById('identifierType').value || 'QUASI';
                 saveTagUpdate(data.id, data.category, idType, newEntityId);
@@ -787,7 +787,7 @@ function updateIdentifierTypeAndSave() {
         return;
     }
     
-    const currentTagData = JSON.parse(currentTagElement.dataset.tagData);
+    const currentTagData = safeJsonParse(currentTagElement.dataset.tagData);
     const identifierType = document.getElementById('identifierType').value || 'QUASI';
     currentTagElement.dataset.tagData = JSON.stringify({...currentTagData, identifier_type: identifierType});
     // 서버에 저장
@@ -825,7 +825,7 @@ function saveTagUpdate(tagId, piiCategoryValue, identifierType, entityId) {
             // 로컬 데이터 동기화: identifier_type, entity_id 반영
             const tagElement = document.querySelector(`[data-tag-id="${tagId}"]`);
             if (tagElement) {
-                const localData = JSON.parse(tagElement.dataset.tagData);
+                const localData = safeJsonParse(tagElement.dataset.tagData);
                 localData.identifier_type = identifierType || 'QUASI';
                 if (entityId) {
                     localData.entity_id = entityId;
@@ -853,7 +853,7 @@ function saveTagUpdate(tagId, piiCategoryValue, identifierType, entityId) {
 }
 
 function updateTagEntityId(tagElement, newEntityId) {
-    const tagData = JSON.parse(tagElement.dataset.tagData);
+    const tagData = safeJsonParse(tagElement.dataset.tagData);
     tagData.entity_id = newEntityId;
     tagElement.dataset.tagData = JSON.stringify(tagData);
     
@@ -864,7 +864,7 @@ function updateTagEntityId(tagElement, newEntityId) {
 function updateCurrentTagEntityId(newEntityId) {
     const currentTagElement = document.querySelector('.existing-pii-tag.selected');
     if (currentTagElement) {
-        const tagData = JSON.parse(currentTagElement.dataset.tagData);
+        const tagData = safeJsonParse(currentTagElement.dataset.tagData);
         if (newEntityId) {
             tagData.entity_id = newEntityId;
         } else {
@@ -879,7 +879,7 @@ function updateCurrentTagEntityId(newEntityId) {
 function updateJsonDisplay() {
     const currentTagElement = document.querySelector('.existing-pii-tag.selected');
     if (currentTagElement) {
-        const tagData = JSON.parse(currentTagElement.dataset.tagData);
+        const tagData = safeJsonParse(currentTagElement.dataset.tagData);
         const jsonData = {
             span_text: tagData.text,
             entity_type: tagData.category,
@@ -896,6 +896,24 @@ function updateJsonDisplay() {
 
     // 화면 업데이트
     applyLinkedTagStyles();
+}
+
+// 안전한 JSON 파싱 함수
+function safeJsonParse(jsonString, fallback = {}) {
+    try {
+        // HTML 엔티티를 원래 문자로 복원
+        const decodedString = jsonString
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>');
+        return JSON.parse(decodedString);
+    } catch (error) {
+        console.error('JSON 파싱 오류:', error);
+        console.error('문제가 된 JSON 문자열:', jsonString);
+        return fallback;
+    }
 }
 
 // 문서 정보 업데이트 함수
@@ -926,7 +944,7 @@ function applyLinkedTagStyles() {
     
     // entity_id별로 태그들을 그룹화
     allTags.forEach(tag => {
-        const tagData = JSON.parse(tag.dataset.tagData);
+        const tagData = safeJsonParse(tag.dataset.tagData);
         const entityId = tagData.entity_id;
         
         if (!entityGroups[entityId]) {
@@ -945,7 +963,7 @@ function applyLinkedTagStyles() {
         } else if (group.length === 1) {
             // 혼자만 있는 그룹인 경우, 독립 태그인지 확인
             const tag = group[0];
-            const tagData = JSON.parse(tag.dataset.tagData);
+            const tagData = safeJsonParse(tag.dataset.tagData);
             
             // span_id와 entity_id가 다르면 연결된 태그 (linked 클래스 추가)
             // if (String(tagData.span_id) !== String(tagData.entity_id)) {
@@ -964,7 +982,7 @@ function addNewTagToDOM(tagData) {
     
     // 기존 태그들을 가져와서 정렬
     const existingTags = Array.from(document.querySelectorAll('.existing-pii-tag')).map(el => {
-        const data = JSON.parse(el.dataset.tagData);
+        const data = safeJsonParse(el.dataset.tagData);
         return {
             id: data.id,
             start: data.start,
@@ -993,7 +1011,8 @@ function addNewTagToDOM(tagData) {
         const tag = existingTags[i];
         const beforeTag = htmlContent.substring(0, tag.start);
         const afterTag = htmlContent.substring(tag.end);
-        const tagHtml = `<span class="existing-pii-tag" style="background-color: ${tag.color};" title="${tag.category}: ${tag.text}" data-tag-id="${tag.id}" data-tag-data='${JSON.stringify(tag)}' onclick="selectExistingTag(${tag.id})">${tag.text}<button class="delete-btn" onclick="deleteTag(${tag.id}); event.stopPropagation();" title="태그 삭제">×</button></span>`;
+        const safeTagData = JSON.stringify(tag).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const tagHtml = '<span class="existing-pii-tag" style="background-color: ' + tag.color + ';" title="' + tag.category + ': ' + tag.text + '" data-tag-id="' + tag.id + '" data-tag-data="' + safeTagData + '" onclick="selectExistingTag(' + tag.id + ')">' + tag.text + '<button class="delete-btn" onclick="deleteTag(' + tag.id + '); event.stopPropagation();" title="태그 삭제">×</button></span>';
         htmlContent = beforeTag + tagHtml + afterTag;
     }
     
@@ -1018,13 +1037,13 @@ function removeTagFromDOM(tagId) {
     const tagElement = document.querySelector(`[data-tag-id="${tagId}"]`);
     if (tagElement) {
         // 삭제된 태그의 데이터 저장
-        const tagData = JSON.parse(tagElement.dataset.tagData);
+        const tagData = safeJsonParse(tagElement.dataset.tagData);
         
         // 기존 태그들을 가져와서 삭제할 태그 제외
         const remainingTags = Array.from(document.querySelectorAll('.existing-pii-tag'))
             .filter(el => el.dataset.tagId !== tagId.toString())
             .map(el => {
-                const data = JSON.parse(el.dataset.tagData);
+                const data = safeJsonParse(el.dataset.tagData);
                 return {
                     id: data.id,
                     start: data.start,
@@ -1053,7 +1072,8 @@ function removeTagFromDOM(tagId) {
             const tag = remainingTags[i];
             const beforeTag = htmlContent.substring(0, tag.start);
             const afterTag = htmlContent.substring(tag.end);
-            const tagHtml = `<span class="existing-pii-tag" style="background-color: ${tag.color};" title="${tag.category}: ${tag.text}" data-tag-id="${tag.id}" data-tag-data='${JSON.stringify(tag)}' onclick="selectExistingTag(${tag.id})">${tag.text}<button class="delete-btn" onclick="deleteTag(${tag.id}); event.stopPropagation();" title="태그 삭제">×</button></span>`;
+            const safeTagData = JSON.stringify(tag).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const tagHtml = '<span class="existing-pii-tag" style="background-color: ' + tag.color + ';" title="' + tag.category + ': ' + tag.text + '" data-tag-id="' + tag.id + '" data-tag-data="' + safeTagData + '" onclick="selectExistingTag(' + tag.id + ')">' + tag.text + '<button class="delete-btn" onclick="deleteTag(' + tag.id + '); event.stopPropagation();" title="태그 삭제">×</button></span>';
             htmlContent = beforeTag + tagHtml + afterTag;
         }
         
@@ -1080,7 +1100,7 @@ function updateTagsAfterParentDeletion(updatedTags, deletedTagId) {
     const remainingTags = Array.from(document.querySelectorAll('.existing-pii-tag'))
         .filter(el => el.dataset.tagId !== deletedTagId.toString())
         .map(el => {
-            const data = JSON.parse(el.dataset.tagData);
+            const data = safeJsonParse(el.dataset.tagData);
             return {
                 id: data.id,
                 start: data.start,
@@ -1114,7 +1134,8 @@ function updateTagsAfterParentDeletion(updatedTags, deletedTagId) {
         const tag = remainingTags[i];
         const beforeTag = htmlContent.substring(0, tag.start);
         const afterTag = htmlContent.substring(tag.end);
-        const tagHtml = `<span class="existing-pii-tag" style="background-color: ${tag.color};" title="${tag.category}: ${tag.text}" data-tag-id="${tag.id}" data-tag-data='${JSON.stringify(tag)}' onclick="selectExistingTag(${tag.id})">${tag.text}<button class="delete-btn" onclick="deleteTag(${tag.id}); event.stopPropagation();" title="태그 삭제">×</button></span>`;
+        const safeTagData = JSON.stringify(tag).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const tagHtml = '<span class="existing-pii-tag" style="background-color: ' + tag.color + ';" title="' + tag.category + ': ' + tag.text + '" data-tag-id="' + tag.id + '" data-tag-data="' + safeTagData + '" onclick="selectExistingTag(' + tag.id + ')">' + tag.text + '<button class="delete-btn" onclick="deleteTag(' + tag.id + '); event.stopPropagation();" title="태그 삭제">×</button></span>';
         htmlContent = beforeTag + tagHtml + afterTag;
     }
     
@@ -1144,8 +1165,8 @@ function highlightLinkedTags(entityId) {
     });
     
     allTags.forEach(tag => {
-        const tagData = JSON.parse(tag.dataset.tagData);
-        
+        const tagData = safeJsonParse(tag.dataset.tagData);
+
         if (String(tagData.entity_id) === String(entityId)) {
             // 같은 entity_id를 가진 태그들 처리
             
@@ -1237,7 +1258,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const tag = sortedTags[i];
             const beforeTag = htmlContent.substring(0, tag.start);
             const afterTag = htmlContent.substring(tag.end);
-            const tagHtml = `<span class="existing-pii-tag" style="background-color: ${tag.color};" title="${tag.category}: ${tag.text}" data-tag-id="${tag.id}" data-tag-data='${JSON.stringify(tag)}' onclick="selectExistingTag(${tag.id})">${tag.text}<button class="delete-btn" onclick="deleteTag(${tag.id}); event.stopPropagation();" title="태그 삭제">×</button></span>`;
+            // JSON 데이터를 안전하게 처리
+            const safeTagData = JSON.stringify(tag).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            const tagHtml = '<span class="existing-pii-tag" style="background-color: ' + tag.color + ';" title="' + tag.category + ': ' + tag.text + '" data-tag-id="' + tag.id + '" data-tag-data="' + safeTagData + '" onclick="selectExistingTag(' + tag.id + ')">' + tag.text + '<button class="delete-btn" onclick="deleteTag(' + tag.id + '); event.stopPropagation();" title="태그 삭제">×</button></span>';
             htmlContent = beforeTag + tagHtml + afterTag;
         }
         
@@ -1511,7 +1534,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const allTags = document.querySelectorAll('.existing-pii-tag');
         
         for (let tag of allTags) {
-            const tagData = JSON.parse(tag.dataset.tagData);
+            const tagData = safeJsonParse(tag.dataset.tagData);
             const tagStart = tagData.start;
             const tagEnd = tagData.end;
             
@@ -1635,7 +1658,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const tagElement = document.querySelector(`[data-tag-id="${tagId}"]`);
         if (!tagElement) return;
         
-        const tagData = JSON.parse(tagElement.dataset.tagData);
+        const tagData = safeJsonParse(tagElement.dataset.tagData);
         
         // 1. 먼저 모든 선택 상태 초기화
         document.querySelectorAll('.existing-pii-tag').forEach(tag => {
@@ -1699,7 +1722,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 기존 태그 타입 업데이트 함수
     function updateExistingTagType(tagElement, newType) {
         const tagId = tagElement.dataset.tagId;
-        const tagData = JSON.parse(tagElement.dataset.tagData);
+        const tagData = safeJsonParse(tagElement.dataset.tagData);
         const identifierType = tagData.identifier_type || 'QUASI';
         
         const formData = new FormData();

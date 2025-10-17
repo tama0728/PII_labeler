@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.db import IntegrityError, transaction
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
+from django.utils.html import escape
 import json
 import os
 from .models import Document, PIICategory, PIITag
@@ -49,12 +50,12 @@ def document_detail(request, pk):
             'id': tag.id,
             'start': tag.start_offset,
             'end': tag.end_offset,
-            'text': tag.span_text,
+            'text': escape(tag.span_text),
             'color': tag.pii_category.background_color,
             'category': tag.pii_category.value,
             'span_id': tag.span_id,
             'entity_id': tag.entity_id,
-            'annotator': tag.annotator,
+            'annotator': escape(tag.annotator),
             'identifier_type': tag.identifier_type
         })
     
@@ -310,12 +311,12 @@ def add_pii_tag(request):
                     'id': new_tag.id,
                     'start': new_tag.start_offset,
                     'end': new_tag.end_offset,
-                    'text': new_tag.span_text,
+                    'text': escape(new_tag.span_text),
                     'color': new_tag.pii_category.background_color,
                     'category': new_tag.pii_category.value,
                     'span_id': new_tag.span_id,
                     'entity_id': new_tag.entity_id,
-                    'annotator': new_tag.annotator,
+                    'annotator': escape(new_tag.annotator),
                     'identifier_type': new_tag.identifier_type
                 },
                 'document_info': {
